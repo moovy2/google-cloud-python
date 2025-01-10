@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,12 +39,8 @@ def sample_create_document():
     client = discoveryengine_v1beta.DocumentServiceClient()
 
     # Initialize request argument(s)
-    document = discoveryengine_v1beta.Document()
-    document.schema_id = "schema_id_value"
-
     request = discoveryengine_v1beta.CreateDocumentRequest(
         parent="parent_value",
-        document=document,
         document_id="document_id_value",
     )
 

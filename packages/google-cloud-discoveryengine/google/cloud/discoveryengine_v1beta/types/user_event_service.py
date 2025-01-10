@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -31,14 +33,29 @@ __protobuf__ = proto.module(
 class WriteUserEventRequest(proto.Message):
     r"""Request message for WriteUserEvent method.
 
+    .. _oneof: https://proto-plus-python.readthedocs.io/en/stable/fields.html#oneofs-mutually-exclusive-fields
+
     Attributes:
         parent (str):
-            Required. The parent DataStore resource name, such as
-            ``projects/{project}/locations/{location}/dataStores/{data_store}``.
+            Required. The parent resource name. If the write user event
+            action is applied in
+            [DataStore][google.cloud.discoveryengine.v1beta.DataStore]
+            level, the format is:
+            ``projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}``.
+            If the write user event action is applied in [Location][]
+            level, for example, the event with
+            [Document][google.cloud.discoveryengine.v1beta.Document]
+            across multiple
+            [DataStore][google.cloud.discoveryengine.v1beta.DataStore],
+            the format is: ``projects/{project}/locations/{location}``.
         user_event (google.cloud.discoveryengine_v1beta.types.UserEvent):
             Required. User event to write.
 
             This field is a member of `oneof`_ ``_user_event``.
+        write_async (bool):
+            If set to true, the user event is written
+            asynchronously after validation, and the API
+            responds without waiting for the write.
     """
 
     parent: str = proto.Field(
@@ -51,15 +68,21 @@ class WriteUserEventRequest(proto.Message):
         optional=True,
         message=gcd_user_event.UserEvent,
     )
+    write_async: bool = proto.Field(
+        proto.BOOL,
+        number=3,
+    )
 
 
 class CollectUserEventRequest(proto.Message):
     r"""Request message for CollectUserEvent method.
 
+    .. _oneof: https://proto-plus-python.readthedocs.io/en/stable/fields.html#oneofs-mutually-exclusive-fields
+
     Attributes:
         parent (str):
             Required. The parent DataStore resource name, such as
-            ``projects/{project}/locations/{location}/dataStores/{data_store}``.
+            ``projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}``.
         user_event (str):
             Required. URL encoded UserEvent proto with a
             length limit of 2,000,000 characters.
@@ -68,7 +91,7 @@ class CollectUserEventRequest(proto.Message):
             excluding the hash fragment with a length limit
             of 5,000 characters. This is often more useful
             than the referer URL, because many browsers only
-            send the domain for 3rd party requests.
+            send the domain for third-party requests.
 
             This field is a member of `oneof`_ ``_uri``.
         ets (int):

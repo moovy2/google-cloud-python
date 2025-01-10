@@ -16,7 +16,7 @@
 
 # This script requires the following environment variables to be set:
 # `TEST_TYPE` should be one of ["lint", "lint_setup_py", "docs", "docfx", "prerelease"]
-# `PY_VERSION` should be one of ["3.7", "3.8", "3.9", "3.10", "3.11"]
+# `PY_VERSION` should be one of ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
 # This script is called by the `ci/run_conditional_tests.sh` script.
 # A specific `nox` session will be run, depending on the value of 
@@ -50,14 +50,26 @@ case ${TEST_TYPE} in
         ;;
     docs)
         nox -s docs
+        # This line needs to be directly after `nox -s docs` in order
+        # for the failure to appear in Github presubmits
         retval=$?
+        # Clean up built docs and python cache after the build process to avoid
+        # `[Errno 28] No space left on device`
+        # See https://github.com/googleapis/google-cloud-python/issues/12271
+        rm -rf docs/_build
         ;;
     docfx)
         nox -s docfx
+        # This line needs to be directly after `nox -s docfx` in order
+        # for the failure to appear in Github presubmits
         retval=$?
+        # Clean up built docs and python cache after the build process to avoid
+        # `[Errno 28] No space left on device`
+        # See https://github.com/googleapis/google-cloud-python/issues/12271
+        rm -rf docs/_build
         ;;
     prerelease)
-        nox -s prerelease_deps-3.10
+        nox -s prerelease_deps-3.13
         retval=$?
         ;;
     unit)
@@ -82,9 +94,22 @@ case ${TEST_TYPE} in
             nox -s unit-3.11
             retval=$?
             ;;
+        "3.12")
+            nox -s unit-3.12
+            retval=$?
+            ;;
+        "3.13")
+            nox -s unit-3.13
+            retval=$?
+            ;;
         *)
             ;;
         esac
 esac
+
+# Clean up `__pycache__` and `.nox` directories to avoid error
+# `No space left on device` seen when running tests in Github Actions
+find . | grep -E "(__pycache__)" | xargs rm -rf
+rm -rf .nox
 
 exit ${retval}

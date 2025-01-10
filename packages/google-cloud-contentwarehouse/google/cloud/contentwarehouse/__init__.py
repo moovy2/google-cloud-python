@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,6 +36,12 @@ from google.cloud.contentwarehouse_v1.services.document_service.async_client imp
 from google.cloud.contentwarehouse_v1.services.document_service.client import (
     DocumentServiceClient,
 )
+from google.cloud.contentwarehouse_v1.services.pipeline_service.async_client import (
+    PipelineServiceAsyncClient,
+)
+from google.cloud.contentwarehouse_v1.services.pipeline_service.client import (
+    PipelineServiceClient,
+)
 from google.cloud.contentwarehouse_v1.services.rule_set_service.async_client import (
     RuleSetServiceAsyncClient,
 )
@@ -55,6 +61,7 @@ from google.cloud.contentwarehouse_v1.types.async_document_service_request impor
 from google.cloud.contentwarehouse_v1.types.common import (
     AccessControlMode,
     DatabaseType,
+    DocumentCreatorDefaultRole,
     MergeFieldsOptions,
     RequestMetadata,
     ResponseMetadata,
@@ -63,6 +70,7 @@ from google.cloud.contentwarehouse_v1.types.common import (
     UserInfo,
 )
 from google.cloud.contentwarehouse_v1.types.document import (
+    ContentCategory,
     DateTimeArray,
     Document,
     DocumentReference,
@@ -122,20 +130,34 @@ from google.cloud.contentwarehouse_v1.types.document_service_request import (
     DeleteDocumentRequest,
     FetchAclRequest,
     GetDocumentRequest,
+    LockDocumentRequest,
     SearchDocumentsRequest,
     SetAclRequest,
     UpdateDocumentRequest,
 )
 from google.cloud.contentwarehouse_v1.types.filters import (
+    CustomWeightsMetadata,
     DocumentQuery,
     FileTypeFilter,
     PropertyFilter,
     TimeFilter,
+    WeightedSchemaProperty,
 )
 from google.cloud.contentwarehouse_v1.types.histogram import (
     HistogramQuery,
     HistogramQueryPropertyNameFilter,
     HistogramQueryResult,
+)
+from google.cloud.contentwarehouse_v1.types.pipeline_service import RunPipelineRequest
+from google.cloud.contentwarehouse_v1.types.pipelines import (
+    ExportToCdwPipeline,
+    GcsIngestPipeline,
+    GcsIngestWithDocAiProcessorsPipeline,
+    IngestPipelineConfig,
+    ProcessorInfo,
+    ProcessWithDocAiPipeline,
+    RunPipelineMetadata,
+    RunPipelineResponse,
 )
 from google.cloud.contentwarehouse_v1.types.rule_engine import (
     AccessControlAction,
@@ -180,6 +202,8 @@ __all__ = (
     "DocumentSchemaServiceAsyncClient",
     "DocumentServiceClient",
     "DocumentServiceAsyncClient",
+    "PipelineServiceClient",
+    "PipelineServiceAsyncClient",
     "RuleSetServiceClient",
     "RuleSetServiceAsyncClient",
     "SynonymSetServiceClient",
@@ -193,6 +217,7 @@ __all__ = (
     "UserInfo",
     "AccessControlMode",
     "DatabaseType",
+    "DocumentCreatorDefaultRole",
     "UpdateType",
     "DateTimeArray",
     "Document",
@@ -208,6 +233,7 @@ __all__ = (
     "TimestampArray",
     "TimestampValue",
     "Value",
+    "ContentCategory",
     "RawDocumentFileType",
     "CreateDocumentLinkRequest",
     "DeleteDocumentLinkRequest",
@@ -243,16 +269,28 @@ __all__ = (
     "DeleteDocumentRequest",
     "FetchAclRequest",
     "GetDocumentRequest",
+    "LockDocumentRequest",
     "SearchDocumentsRequest",
     "SetAclRequest",
     "UpdateDocumentRequest",
+    "CustomWeightsMetadata",
     "DocumentQuery",
     "FileTypeFilter",
     "PropertyFilter",
     "TimeFilter",
+    "WeightedSchemaProperty",
     "HistogramQuery",
     "HistogramQueryPropertyNameFilter",
     "HistogramQueryResult",
+    "RunPipelineRequest",
+    "ExportToCdwPipeline",
+    "GcsIngestPipeline",
+    "GcsIngestWithDocAiProcessorsPipeline",
+    "IngestPipelineConfig",
+    "ProcessorInfo",
+    "ProcessWithDocAiPipeline",
+    "RunPipelineMetadata",
+    "RunPipelineResponse",
     "AccessControlAction",
     "Action",
     "ActionExecutorOutput",

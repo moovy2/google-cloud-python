@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import json
+import logging as std_logging
+import pickle
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 import warnings
 
@@ -21,16 +24,96 @@ from google.api_core import gapic_v1, grpc_helpers, operations_v1
 import google.auth  # type: ignore
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.auth.transport.grpc import SslCredentials  # type: ignore
+from google.cloud.location import locations_pb2  # type: ignore
 from google.longrunning import operations_pb2  # type: ignore
+from google.protobuf.json_format import MessageToJson
+import google.protobuf.message
 import grpc  # type: ignore
+import proto  # type: ignore
 
 from google.cloud.discoveryengine_v1beta.types import (
     import_config,
+    purge_config,
     user_event,
     user_event_service,
 )
 
 from .base import DEFAULT_CLIENT_INFO, UserEventServiceTransport
+
+try:
+    from google.api_core import client_logging  # type: ignore
+
+    CLIENT_LOGGING_SUPPORTED = True  # pragma: NO COVER
+except ImportError:  # pragma: NO COVER
+    CLIENT_LOGGING_SUPPORTED = False
+
+_LOGGER = std_logging.getLogger(__name__)
+
+
+class _LoggingClientInterceptor(grpc.UnaryUnaryClientInterceptor):  # pragma: NO COVER
+    def intercept_unary_unary(self, continuation, client_call_details, request):
+        logging_enabled = CLIENT_LOGGING_SUPPORTED and _LOGGER.isEnabledFor(
+            std_logging.DEBUG
+        )
+        if logging_enabled:  # pragma: NO COVER
+            request_metadata = client_call_details.metadata
+            if isinstance(request, proto.Message):
+                request_payload = type(request).to_json(request)
+            elif isinstance(request, google.protobuf.message.Message):
+                request_payload = MessageToJson(request)
+            else:
+                request_payload = f"{type(request).__name__}: {pickle.dumps(request)}"
+
+            request_metadata = {
+                key: value.decode("utf-8") if isinstance(value, bytes) else value
+                for key, value in request_metadata
+            }
+            grpc_request = {
+                "payload": request_payload,
+                "requestMethod": "grpc",
+                "metadata": dict(request_metadata),
+            }
+            _LOGGER.debug(
+                f"Sending request for {client_call_details.method}",
+                extra={
+                    "serviceName": "google.cloud.discoveryengine.v1beta.UserEventService",
+                    "rpcName": client_call_details.method,
+                    "request": grpc_request,
+                    "metadata": grpc_request["metadata"],
+                },
+            )
+
+        response = continuation(client_call_details, request)
+        if logging_enabled:  # pragma: NO COVER
+            response_metadata = response.trailing_metadata()
+            # Convert gRPC metadata `<class 'grpc.aio._metadata.Metadata'>` to list of tuples
+            metadata = (
+                dict([(k, str(v)) for k, v in response_metadata])
+                if response_metadata
+                else None
+            )
+            result = response.result()
+            if isinstance(result, proto.Message):
+                response_payload = type(result).to_json(result)
+            elif isinstance(result, google.protobuf.message.Message):
+                response_payload = MessageToJson(result)
+            else:
+                response_payload = f"{type(result).__name__}: {pickle.dumps(result)}"
+            grpc_response = {
+                "payload": response_payload,
+                "metadata": metadata,
+                "status": "OK",
+            }
+            _LOGGER.debug(
+                f"Received response for {client_call_details.method}.",
+                extra={
+                    "serviceName": "google.cloud.discoveryengine.v1beta.UserEventService",
+                    "rpcName": client_call_details.method,
+                    "response": grpc_response,
+                    "metadata": grpc_response["metadata"],
+                },
+            )
+        return response
 
 
 class UserEventServiceGrpcTransport(UserEventServiceTransport):
@@ -56,7 +139,7 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         credentials: Optional[ga_credentials.Credentials] = None,
         credentials_file: Optional[str] = None,
         scopes: Optional[Sequence[str]] = None,
-        channel: Optional[grpc.Channel] = None,
+        channel: Optional[Union[grpc.Channel, Callable[..., grpc.Channel]]] = None,
         api_mtls_endpoint: Optional[str] = None,
         client_cert_source: Optional[Callable[[], Tuple[bytes, bytes]]] = None,
         ssl_channel_credentials: Optional[grpc.ChannelCredentials] = None,
@@ -70,20 +153,23 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
 
         Args:
             host (Optional[str]):
-                 The hostname to connect to.
+                 The hostname to connect to (default: 'discoveryengine.googleapis.com').
             credentials (Optional[google.auth.credentials.Credentials]): The
                 authorization credentials to attach to requests. These
                 credentials identify the application to the service; if none
                 are specified, the client will attempt to ascertain the
                 credentials from the environment.
-                This argument is ignored if ``channel`` is provided.
+                This argument is ignored if a ``channel`` instance is provided.
             credentials_file (Optional[str]): A file with credentials that can
                 be loaded with :func:`google.auth.load_credentials_from_file`.
-                This argument is ignored if ``channel`` is provided.
+                This argument is ignored if a ``channel`` instance is provided.
             scopes (Optional(Sequence[str])): A list of scopes. This argument is
-                ignored if ``channel`` is provided.
-            channel (Optional[grpc.Channel]): A ``Channel`` instance through
-                which to make calls.
+                ignored if a ``channel`` instance is provided.
+            channel (Optional[Union[grpc.Channel, Callable[..., grpc.Channel]]]):
+                A ``Channel`` instance through which to make calls, or a Callable
+                that constructs and returns one. If set to None, ``self.create_channel``
+                is used to create the channel. If a Callable is given, it will be called
+                with the same arguments as used in ``self.create_channel``.
             api_mtls_endpoint (Optional[str]): Deprecated. The mutual TLS endpoint.
                 If provided, it overrides the ``host`` argument and tries to create
                 a mutual TLS channel with client SSL credentials from
@@ -93,11 +179,11 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
                 private key bytes, both in PEM format. It is ignored if
                 ``api_mtls_endpoint`` is None.
             ssl_channel_credentials (grpc.ChannelCredentials): SSL credentials
-                for the grpc channel. It is ignored if ``channel`` is provided.
+                for the grpc channel. It is ignored if a ``channel`` instance is provided.
             client_cert_source_for_mtls (Optional[Callable[[], Tuple[bytes, bytes]]]):
                 A callback to provide client certificate bytes and private key bytes,
                 both in PEM format. It is used to configure a mutual TLS channel. It is
-                ignored if ``channel`` or ``ssl_channel_credentials`` is provided.
+                ignored if a ``channel`` instance or ``ssl_channel_credentials`` is provided.
             quota_project_id (Optional[str]): An optional project to use for billing
                 and quota.
             client_info (google.api_core.gapic_v1.client_info.ClientInfo):
@@ -124,9 +210,10 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         if client_cert_source:
             warnings.warn("client_cert_source is deprecated", DeprecationWarning)
 
-        if channel:
+        if isinstance(channel, grpc.Channel):
             # Ignore credentials if a channel was passed.
-            credentials = False
+            credentials = None
+            self._ignore_credentials = True
             # If a channel was explicitly provided, set it.
             self._grpc_channel = channel
             self._ssl_channel_credentials = None
@@ -165,7 +252,9 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         )
 
         if not self._grpc_channel:
-            self._grpc_channel = type(self).create_channel(
+            # initialize with the provided callable or the default channel
+            channel_init = channel or type(self).create_channel
+            self._grpc_channel = channel_init(
                 self._host,
                 # use the credentials which are saved
                 credentials=self._credentials,
@@ -181,7 +270,12 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
                 ],
             )
 
-        # Wrap messages. This must be done after self._grpc_channel exists
+        self._interceptor = _LoggingClientInterceptor()
+        self._logged_channel = grpc.intercept_channel(
+            self._grpc_channel, self._interceptor
+        )
+
+        # Wrap messages. This must be done after self._logged_channel exists
         self._prep_wrapped_messages(client_info)
 
     @classmethod
@@ -245,7 +339,9 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         """
         # Quick check: Only create a new client if we do not already have one.
         if self._operations_client is None:
-            self._operations_client = operations_v1.OperationsClient(self.grpc_channel)
+            self._operations_client = operations_v1.OperationsClient(
+                self._logged_channel
+            )
 
         # Return the client from cache.
         return self._operations_client
@@ -269,7 +365,7 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "write_user_event" not in self._stubs:
-            self._stubs["write_user_event"] = self.grpc_channel.unary_unary(
+            self._stubs["write_user_event"] = self._logged_channel.unary_unary(
                 "/google.cloud.discoveryengine.v1beta.UserEventService/WriteUserEvent",
                 request_serializer=user_event_service.WriteUserEventRequest.serialize,
                 response_deserializer=user_event.UserEvent.deserialize,
@@ -284,7 +380,8 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
 
         Writes a single user event from the browser. This
         uses a GET request to due to browser restriction of
-        POST-ing to a 3rd party domain.
+        POST-ing to a third-party domain.
+
         This method is used only by the Discovery Engine API
         JavaScript pixel and Google Tag Manager. Users should
         not call this method directly.
@@ -300,7 +397,7 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "collect_user_event" not in self._stubs:
-            self._stubs["collect_user_event"] = self.grpc_channel.unary_unary(
+            self._stubs["collect_user_event"] = self._logged_channel.unary_unary(
                 "/google.cloud.discoveryengine.v1beta.UserEventService/CollectUserEvent",
                 request_serializer=user_event_service.CollectUserEventRequest.serialize,
                 response_deserializer=httpbody_pb2.HttpBody.FromString,
@@ -308,14 +405,45 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         return self._stubs["collect_user_event"]
 
     @property
+    def purge_user_events(
+        self,
+    ) -> Callable[[purge_config.PurgeUserEventsRequest], operations_pb2.Operation]:
+        r"""Return a callable for the purge user events method over gRPC.
+
+        Deletes permanently all user events specified by the
+        filter provided. Depending on the number of events
+        specified by the filter, this operation could take hours
+        or days to complete. To test a filter, use the list
+        command first.
+
+        Returns:
+            Callable[[~.PurgeUserEventsRequest],
+                    ~.Operation]:
+                A function that, when called, will call the underlying RPC
+                on the server.
+        """
+        # Generate a "stub function" on-the-fly which will actually make
+        # the request.
+        # gRPC handles serialization and deserialization, so we just need
+        # to pass in the functions for each.
+        if "purge_user_events" not in self._stubs:
+            self._stubs["purge_user_events"] = self._logged_channel.unary_unary(
+                "/google.cloud.discoveryengine.v1beta.UserEventService/PurgeUserEvents",
+                request_serializer=purge_config.PurgeUserEventsRequest.serialize,
+                response_deserializer=operations_pb2.Operation.FromString,
+            )
+        return self._stubs["purge_user_events"]
+
+    @property
     def import_user_events(
         self,
     ) -> Callable[[import_config.ImportUserEventsRequest], operations_pb2.Operation]:
         r"""Return a callable for the import user events method over gRPC.
 
-        Bulk import of User events. Request processing might
+        Bulk import of user events. Request processing might
         be synchronous. Events that already exist are skipped.
         Use this method for backfilling historical user events.
+
         Operation.response is of type ImportResponse. Note that
         it is possible for a subset of the items to be
         successfully inserted. Operation.metadata is of type
@@ -332,7 +460,7 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "import_user_events" not in self._stubs:
-            self._stubs["import_user_events"] = self.grpc_channel.unary_unary(
+            self._stubs["import_user_events"] = self._logged_channel.unary_unary(
                 "/google.cloud.discoveryengine.v1beta.UserEventService/ImportUserEvents",
                 request_serializer=import_config.ImportUserEventsRequest.serialize,
                 response_deserializer=operations_pb2.Operation.FromString,
@@ -340,7 +468,24 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         return self._stubs["import_user_events"]
 
     def close(self):
-        self.grpc_channel.close()
+        self._logged_channel.close()
+
+    @property
+    def cancel_operation(
+        self,
+    ) -> Callable[[operations_pb2.CancelOperationRequest], None]:
+        r"""Return a callable for the cancel_operation method over gRPC."""
+        # Generate a "stub function" on-the-fly which will actually make
+        # the request.
+        # gRPC handles serialization and deserialization, so we just need
+        # to pass in the functions for each.
+        if "cancel_operation" not in self._stubs:
+            self._stubs["cancel_operation"] = self._logged_channel.unary_unary(
+                "/google.longrunning.Operations/CancelOperation",
+                request_serializer=operations_pb2.CancelOperationRequest.SerializeToString,
+                response_deserializer=None,
+            )
+        return self._stubs["cancel_operation"]
 
     @property
     def get_operation(
@@ -352,7 +497,7 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "get_operation" not in self._stubs:
-            self._stubs["get_operation"] = self.grpc_channel.unary_unary(
+            self._stubs["get_operation"] = self._logged_channel.unary_unary(
                 "/google.longrunning.Operations/GetOperation",
                 request_serializer=operations_pb2.GetOperationRequest.SerializeToString,
                 response_deserializer=operations_pb2.Operation.FromString,
@@ -371,7 +516,7 @@ class UserEventServiceGrpcTransport(UserEventServiceTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "list_operations" not in self._stubs:
-            self._stubs["list_operations"] = self.grpc_channel.unary_unary(
+            self._stubs["list_operations"] = self._logged_channel.unary_unary(
                 "/google.longrunning.Operations/ListOperations",
                 request_serializer=operations_pb2.ListOperationsRequest.SerializeToString,
                 response_deserializer=operations_pb2.ListOperationsResponse.FromString,

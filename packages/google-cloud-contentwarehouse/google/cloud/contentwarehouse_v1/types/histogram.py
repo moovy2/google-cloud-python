@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -42,6 +44,7 @@ class HistogramQuery(proto.Message):
             Controls if the histogram query requires the
             return of a precise count. Enable this flag may
             adversely impact performance.
+
             Defaults to true.
         filters (google.cloud.contentwarehouse_v1.types.HistogramQueryPropertyNameFilter):
             Optional. Filter the result of histogram
@@ -99,6 +102,12 @@ class HistogramQueryPropertyNameFilter(proto.Message):
         r"""The result of the histogram query count('FilterableProperties')
         using HISTOGRAM_YAXIS_DOCUMENT will be: invoice_id: 2 address: 1
         payment_method: 2 line_item_description: 1
+
+        Values:
+            HISTOGRAM_YAXIS_DOCUMENT (0):
+                Count the documents per property name.
+            HISTOGRAM_YAXIS_PROPERTY (1):
+                Count the properties per property name.
         """
         HISTOGRAM_YAXIS_DOCUMENT = 0
         HISTOGRAM_YAXIS_PROPERTY = 1

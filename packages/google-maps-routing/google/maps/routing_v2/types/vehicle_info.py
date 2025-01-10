@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -28,13 +30,14 @@ __protobuf__ = proto.module(
 
 
 class VehicleInfo(proto.Message):
-    r"""Encapsulates the vehicle information, such as the license
-    plate last character.
+    r"""Contains the vehicle information, such as the vehicle
+    emission type.
 
     Attributes:
         emission_type (google.maps.routing_v2.types.VehicleEmissionType):
-            Describes the vehicle's emission type.
-            Applies only to the DRIVE travel mode.
+            Describes the vehicle's emission type. Applies only to the
+            ``DRIVE``
+            [``RouteTravelMode``][google.maps.routing.v2.RouteTravelMode].
     """
 
     emission_type: vehicle_emission_type.VehicleEmissionType = proto.Field(

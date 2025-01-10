@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,21 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from google.maps.routing import gapic_version as package_version
+from google.maps.routing_v2 import gapic_version as package_version
 
 __version__ = package_version.__version__
 
 
 from .services.routes import RoutesAsyncClient, RoutesClient
 from .types.fallback_info import FallbackInfo, FallbackReason, FallbackRoutingMode
+from .types.geocoding_results import GeocodedWaypoint, GeocodingResults
+from .types.localized_time import LocalizedTime
 from .types.location import Location
 from .types.maneuver import Maneuver
 from .types.navigation_instruction import NavigationInstruction
 from .types.polyline import Polyline, PolylineEncoding, PolylineQuality
+from .types.polyline_details import PolylineDetails
 from .types.route import (
     Route,
     RouteLeg,
     RouteLegStep,
+    RouteLegStepTransitDetails,
     RouteLegStepTravelAdvisory,
     RouteLegTravelAdvisory,
     RouteTravelAdvisory,
@@ -48,6 +52,9 @@ from .types.routing_preference import RoutingPreference
 from .types.speed_reading_interval import SpeedReadingInterval
 from .types.toll_info import TollInfo
 from .types.toll_passes import TollPass
+from .types.traffic_model import TrafficModel
+from .types.transit import TransitAgency, TransitLine, TransitStop, TransitVehicle
+from .types.transit_preferences import TransitPreferences
 from .types.units import Units
 from .types.vehicle_emission_type import VehicleEmissionType
 from .types.vehicle_info import VehicleInfo
@@ -61,16 +68,21 @@ __all__ = (
     "FallbackInfo",
     "FallbackReason",
     "FallbackRoutingMode",
+    "GeocodedWaypoint",
+    "GeocodingResults",
+    "LocalizedTime",
     "Location",
     "Maneuver",
     "NavigationInstruction",
     "Polyline",
+    "PolylineDetails",
     "PolylineEncoding",
     "PolylineQuality",
     "Route",
     "RouteLabel",
     "RouteLeg",
     "RouteLegStep",
+    "RouteLegStepTransitDetails",
     "RouteLegStepTravelAdvisory",
     "RouteLegTravelAdvisory",
     "RouteMatrixDestination",
@@ -85,6 +97,12 @@ __all__ = (
     "SpeedReadingInterval",
     "TollInfo",
     "TollPass",
+    "TrafficModel",
+    "TransitAgency",
+    "TransitLine",
+    "TransitPreferences",
+    "TransitStop",
+    "TransitVehicle",
     "Units",
     "VehicleEmissionType",
     "VehicleInfo",

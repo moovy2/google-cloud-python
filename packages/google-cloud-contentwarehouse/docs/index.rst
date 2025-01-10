@@ -8,8 +8,8 @@ API Reference
 .. toctree::
     :maxdepth: 2
 
-    contentwarehouse_v1/services
-    contentwarehouse_v1/types
+    contentwarehouse_v1/services_
+    contentwarehouse_v1/types_
 
 
 Changelog
@@ -21,3 +21,8 @@ For a list of all ``google-cloud-contentwarehouse`` releases:
     :maxdepth: 2
 
     CHANGELOG
+
+.. toctree::
+  :hidden:
+
+  summary_overview.md

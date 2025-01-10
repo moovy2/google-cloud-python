@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
 # limitations under the License.
 #
 from collections import OrderedDict
+import logging as std_logging
 import os
 import re
 from typing import (
+    Callable,
     Dict,
     Mapping,
     MutableMapping,
@@ -28,6 +30,7 @@ from typing import (
     Union,
     cast,
 )
+import warnings
 
 from google.api_core import client_options as client_options_lib
 from google.api_core import exceptions as core_exceptions
@@ -42,22 +45,31 @@ from google.oauth2 import service_account  # type: ignore
 from google.cloud.vmwareengine_v1 import gapic_version as package_version
 
 try:
-    OptionalRetry = Union[retries.Retry, gapic_v1.method._MethodDefault]
+    OptionalRetry = Union[retries.Retry, gapic_v1.method._MethodDefault, None]
 except AttributeError:  # pragma: NO COVER
-    OptionalRetry = Union[retries.Retry, object]  # type: ignore
+    OptionalRetry = Union[retries.Retry, object, None]  # type: ignore
+
+try:
+    from google.api_core import client_logging  # type: ignore
+
+    CLIENT_LOGGING_SUPPORTED = True  # pragma: NO COVER
+except ImportError:  # pragma: NO COVER
+    CLIENT_LOGGING_SUPPORTED = False
+
+_LOGGER = std_logging.getLogger(__name__)
 
 from google.api_core import operation  # type: ignore
 from google.api_core import operation_async  # type: ignore
 from google.cloud.location import locations_pb2  # type: ignore
 from google.iam.v1 import iam_policy_pb2  # type: ignore
 from google.iam.v1 import policy_pb2  # type: ignore
-from google.longrunning import operations_pb2
+from google.longrunning import operations_pb2  # type: ignore
 from google.protobuf import empty_pb2  # type: ignore
 from google.protobuf import field_mask_pb2  # type: ignore
 from google.protobuf import timestamp_pb2  # type: ignore
 
 from google.cloud.vmwareengine_v1.services.vmware_engine import pagers
-from google.cloud.vmwareengine_v1.types import vmwareengine
+from google.cloud.vmwareengine_v1.types import vmwareengine, vmwareengine_resources
 
 from .transports.base import DEFAULT_CLIENT_INFO, VmwareEngineTransport
 from .transports.grpc import VmwareEngineGrpcTransport
@@ -133,10 +145,14 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         return api_endpoint.replace(".googleapis.com", ".mtls.googleapis.com")
 
+    # Note: DEFAULT_ENDPOINT is deprecated. Use _DEFAULT_ENDPOINT_TEMPLATE instead.
     DEFAULT_ENDPOINT = "vmwareengine.googleapis.com"
     DEFAULT_MTLS_ENDPOINT = _get_default_mtls_endpoint.__func__(  # type: ignore
         DEFAULT_ENDPOINT
     )
+
+    _DEFAULT_ENDPOINT_TEMPLATE = "vmwareengine.{UNIVERSE_DOMAIN}"
+    _DEFAULT_UNIVERSE = "googleapis.com"
 
     @classmethod
     def from_service_account_info(cls, info: dict, *args, **kwargs):
@@ -210,6 +226,96 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         return m.groupdict() if m else {}
 
     @staticmethod
+    def dns_bind_permission_path(
+        project: str,
+        location: str,
+    ) -> str:
+        """Returns a fully-qualified dns_bind_permission string."""
+        return "projects/{project}/locations/{location}/dnsBindPermission".format(
+            project=project,
+            location=location,
+        )
+
+    @staticmethod
+    def parse_dns_bind_permission_path(path: str) -> Dict[str, str]:
+        """Parses a dns_bind_permission path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/dnsBindPermission$",
+            path,
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
+    def dns_forwarding_path(
+        project: str,
+        location: str,
+        private_cloud: str,
+    ) -> str:
+        """Returns a fully-qualified dns_forwarding string."""
+        return "projects/{project}/locations/{location}/privateClouds/{private_cloud}/dnsForwarding".format(
+            project=project,
+            location=location,
+            private_cloud=private_cloud,
+        )
+
+    @staticmethod
+    def parse_dns_forwarding_path(path: str) -> Dict[str, str]:
+        """Parses a dns_forwarding path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/privateClouds/(?P<private_cloud>.+?)/dnsForwarding$",
+            path,
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
+    def external_access_rule_path(
+        project: str,
+        location: str,
+        network_policy: str,
+        external_access_rule: str,
+    ) -> str:
+        """Returns a fully-qualified external_access_rule string."""
+        return "projects/{project}/locations/{location}/networkPolicies/{network_policy}/externalAccessRules/{external_access_rule}".format(
+            project=project,
+            location=location,
+            network_policy=network_policy,
+            external_access_rule=external_access_rule,
+        )
+
+    @staticmethod
+    def parse_external_access_rule_path(path: str) -> Dict[str, str]:
+        """Parses a external_access_rule path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/networkPolicies/(?P<network_policy>.+?)/externalAccessRules/(?P<external_access_rule>.+?)$",
+            path,
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
+    def external_address_path(
+        project: str,
+        location: str,
+        private_cloud: str,
+        external_address: str,
+    ) -> str:
+        """Returns a fully-qualified external_address string."""
+        return "projects/{project}/locations/{location}/privateClouds/{private_cloud}/externalAddresses/{external_address}".format(
+            project=project,
+            location=location,
+            private_cloud=private_cloud,
+            external_address=external_address,
+        )
+
+    @staticmethod
+    def parse_external_address_path(path: str) -> Dict[str, str]:
+        """Parses a external_address path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/privateClouds/(?P<private_cloud>.+?)/externalAddresses/(?P<external_address>.+?)$",
+            path,
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
     def hcx_activation_key_path(
         project: str,
         location: str,
@@ -234,6 +340,54 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         return m.groupdict() if m else {}
 
     @staticmethod
+    def logging_server_path(
+        project: str,
+        location: str,
+        private_cloud: str,
+        logging_server: str,
+    ) -> str:
+        """Returns a fully-qualified logging_server string."""
+        return "projects/{project}/locations/{location}/privateClouds/{private_cloud}/loggingServers/{logging_server}".format(
+            project=project,
+            location=location,
+            private_cloud=private_cloud,
+            logging_server=logging_server,
+        )
+
+    @staticmethod
+    def parse_logging_server_path(path: str) -> Dict[str, str]:
+        """Parses a logging_server path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/privateClouds/(?P<private_cloud>.+?)/loggingServers/(?P<logging_server>.+?)$",
+            path,
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
+    def management_dns_zone_binding_path(
+        project: str,
+        location: str,
+        private_cloud: str,
+        management_dns_zone_binding: str,
+    ) -> str:
+        """Returns a fully-qualified management_dns_zone_binding string."""
+        return "projects/{project}/locations/{location}/privateClouds/{private_cloud}/managementDnsZoneBindings/{management_dns_zone_binding}".format(
+            project=project,
+            location=location,
+            private_cloud=private_cloud,
+            management_dns_zone_binding=management_dns_zone_binding,
+        )
+
+    @staticmethod
+    def parse_management_dns_zone_binding_path(path: str) -> Dict[str, str]:
+        """Parses a management_dns_zone_binding path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/privateClouds/(?P<private_cloud>.+?)/managementDnsZoneBindings/(?P<management_dns_zone_binding>.+?)$",
+            path,
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
     def network_path(
         project: str,
         network: str,
@@ -249,6 +403,28 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         """Parses a network path into its component segments."""
         m = re.match(
             r"^projects/(?P<project>.+?)/global/networks/(?P<network>.+?)$", path
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
+    def network_peering_path(
+        project: str,
+        location: str,
+        network_peering: str,
+    ) -> str:
+        """Returns a fully-qualified network_peering string."""
+        return "projects/{project}/locations/{location}/networkPeerings/{network_peering}".format(
+            project=project,
+            location=location,
+            network_peering=network_peering,
+        )
+
+    @staticmethod
+    def parse_network_peering_path(path: str) -> Dict[str, str]:
+        """Parses a network_peering path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/networkPeerings/(?P<network_peering>.+?)$",
+            path,
         )
         return m.groupdict() if m else {}
 
@@ -270,6 +446,32 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         """Parses a network_policy path into its component segments."""
         m = re.match(
             r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/networkPolicies/(?P<network_policy>.+?)$",
+            path,
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
+    def node_path(
+        project: str,
+        location: str,
+        private_cloud: str,
+        cluster: str,
+        node: str,
+    ) -> str:
+        """Returns a fully-qualified node string."""
+        return "projects/{project}/locations/{location}/privateClouds/{private_cloud}/clusters/{cluster}/nodes/{node}".format(
+            project=project,
+            location=location,
+            private_cloud=private_cloud,
+            cluster=cluster,
+            node=node,
+        )
+
+    @staticmethod
+    def parse_node_path(path: str) -> Dict[str, str]:
+        """Parses a node path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/privateClouds/(?P<private_cloud>.+?)/clusters/(?P<cluster>.+?)/nodes/(?P<node>.+?)$",
             path,
         )
         return m.groupdict() if m else {}
@@ -314,6 +516,28 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         """Parses a private_cloud path into its component segments."""
         m = re.match(
             r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/privateClouds/(?P<private_cloud>.+?)$",
+            path,
+        )
+        return m.groupdict() if m else {}
+
+    @staticmethod
+    def private_connection_path(
+        project: str,
+        location: str,
+        private_connection: str,
+    ) -> str:
+        """Returns a fully-qualified private_connection string."""
+        return "projects/{project}/locations/{location}/privateConnections/{private_connection}".format(
+            project=project,
+            location=location,
+            private_connection=private_connection,
+        )
+
+    @staticmethod
+    def parse_private_connection_path(path: str) -> Dict[str, str]:
+        """Parses a private_connection path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/privateConnections/(?P<private_connection>.+?)$",
             path,
         )
         return m.groupdict() if m else {}
@@ -445,7 +669,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
     def get_mtls_endpoint_and_cert_source(
         cls, client_options: Optional[client_options_lib.ClientOptions] = None
     ):
-        """Return the API endpoint and client cert source for mutual TLS.
+        """Deprecated. Return the API endpoint and client cert source for mutual TLS.
 
         The client cert source is determined in the following order:
         (1) if `GOOGLE_API_USE_CLIENT_CERTIFICATE` environment variable is not "true", the
@@ -457,7 +681,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         The API endpoint is determined in the following order:
         (1) if `client_options.api_endpoint` if provided, use the provided one.
         (2) if `GOOGLE_API_USE_CLIENT_CERTIFICATE` environment variable is "always", use the
-        default mTLS endpoint; if the environment variabel is "never", use the default API
+        default mTLS endpoint; if the environment variable is "never", use the default API
         endpoint; otherwise if client cert source exists, use the default mTLS endpoint, otherwise
         use the default API endpoint.
 
@@ -475,6 +699,11 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         Raises:
             google.auth.exceptions.MutualTLSChannelError: If any errors happen.
         """
+
+        warnings.warn(
+            "get_mtls_endpoint_and_cert_source is deprecated. Use the api_endpoint property instead.",
+            DeprecationWarning,
+        )
         if client_options is None:
             client_options = client_options_lib.ClientOptions()
         use_client_cert = os.getenv("GOOGLE_API_USE_CLIENT_CERTIFICATE", "false")
@@ -508,11 +737,151 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         return api_endpoint, client_cert_source
 
+    @staticmethod
+    def _read_environment_variables():
+        """Returns the environment variables used by the client.
+
+        Returns:
+            Tuple[bool, str, str]: returns the GOOGLE_API_USE_CLIENT_CERTIFICATE,
+            GOOGLE_API_USE_MTLS_ENDPOINT, and GOOGLE_CLOUD_UNIVERSE_DOMAIN environment variables.
+
+        Raises:
+            ValueError: If GOOGLE_API_USE_CLIENT_CERTIFICATE is not
+                any of ["true", "false"].
+            google.auth.exceptions.MutualTLSChannelError: If GOOGLE_API_USE_MTLS_ENDPOINT
+                is not any of ["auto", "never", "always"].
+        """
+        use_client_cert = os.getenv(
+            "GOOGLE_API_USE_CLIENT_CERTIFICATE", "false"
+        ).lower()
+        use_mtls_endpoint = os.getenv("GOOGLE_API_USE_MTLS_ENDPOINT", "auto").lower()
+        universe_domain_env = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN")
+        if use_client_cert not in ("true", "false"):
+            raise ValueError(
+                "Environment variable `GOOGLE_API_USE_CLIENT_CERTIFICATE` must be either `true` or `false`"
+            )
+        if use_mtls_endpoint not in ("auto", "never", "always"):
+            raise MutualTLSChannelError(
+                "Environment variable `GOOGLE_API_USE_MTLS_ENDPOINT` must be `never`, `auto` or `always`"
+            )
+        return use_client_cert == "true", use_mtls_endpoint, universe_domain_env
+
+    @staticmethod
+    def _get_client_cert_source(provided_cert_source, use_cert_flag):
+        """Return the client cert source to be used by the client.
+
+        Args:
+            provided_cert_source (bytes): The client certificate source provided.
+            use_cert_flag (bool): A flag indicating whether to use the client certificate.
+
+        Returns:
+            bytes or None: The client cert source to be used by the client.
+        """
+        client_cert_source = None
+        if use_cert_flag:
+            if provided_cert_source:
+                client_cert_source = provided_cert_source
+            elif mtls.has_default_client_cert_source():
+                client_cert_source = mtls.default_client_cert_source()
+        return client_cert_source
+
+    @staticmethod
+    def _get_api_endpoint(
+        api_override, client_cert_source, universe_domain, use_mtls_endpoint
+    ):
+        """Return the API endpoint used by the client.
+
+        Args:
+            api_override (str): The API endpoint override. If specified, this is always
+                the return value of this function and the other arguments are not used.
+            client_cert_source (bytes): The client certificate source used by the client.
+            universe_domain (str): The universe domain used by the client.
+            use_mtls_endpoint (str): How to use the mTLS endpoint, which depends also on the other parameters.
+                Possible values are "always", "auto", or "never".
+
+        Returns:
+            str: The API endpoint to be used by the client.
+        """
+        if api_override is not None:
+            api_endpoint = api_override
+        elif use_mtls_endpoint == "always" or (
+            use_mtls_endpoint == "auto" and client_cert_source
+        ):
+            _default_universe = VmwareEngineClient._DEFAULT_UNIVERSE
+            if universe_domain != _default_universe:
+                raise MutualTLSChannelError(
+                    f"mTLS is not supported in any universe other than {_default_universe}."
+                )
+            api_endpoint = VmwareEngineClient.DEFAULT_MTLS_ENDPOINT
+        else:
+            api_endpoint = VmwareEngineClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=universe_domain
+            )
+        return api_endpoint
+
+    @staticmethod
+    def _get_universe_domain(
+        client_universe_domain: Optional[str], universe_domain_env: Optional[str]
+    ) -> str:
+        """Return the universe domain used by the client.
+
+        Args:
+            client_universe_domain (Optional[str]): The universe domain configured via the client options.
+            universe_domain_env (Optional[str]): The universe domain configured via the "GOOGLE_CLOUD_UNIVERSE_DOMAIN" environment variable.
+
+        Returns:
+            str: The universe domain to be used by the client.
+
+        Raises:
+            ValueError: If the universe domain is an empty string.
+        """
+        universe_domain = VmwareEngineClient._DEFAULT_UNIVERSE
+        if client_universe_domain is not None:
+            universe_domain = client_universe_domain
+        elif universe_domain_env is not None:
+            universe_domain = universe_domain_env
+        if len(universe_domain.strip()) == 0:
+            raise ValueError("Universe Domain cannot be an empty string.")
+        return universe_domain
+
+    def _validate_universe_domain(self):
+        """Validates client's and credentials' universe domains are consistent.
+
+        Returns:
+            bool: True iff the configured universe domain is valid.
+
+        Raises:
+            ValueError: If the configured universe domain is not valid.
+        """
+
+        # NOTE (b/349488459): universe validation is disabled until further notice.
+        return True
+
+    @property
+    def api_endpoint(self):
+        """Return the API endpoint used by the client instance.
+
+        Returns:
+            str: The API endpoint used by the client instance.
+        """
+        return self._api_endpoint
+
+    @property
+    def universe_domain(self) -> str:
+        """Return the universe domain used by the client instance.
+
+        Returns:
+            str: The universe domain used by the client instance.
+        """
+        return self._universe_domain
+
     def __init__(
         self,
         *,
         credentials: Optional[ga_credentials.Credentials] = None,
-        transport: Optional[Union[str, VmwareEngineTransport]] = None,
+        transport: Optional[
+            Union[str, VmwareEngineTransport, Callable[..., VmwareEngineTransport]]
+        ] = None,
         client_options: Optional[Union[client_options_lib.ClientOptions, dict]] = None,
         client_info: gapic_v1.client_info.ClientInfo = DEFAULT_CLIENT_INFO,
     ) -> None:
@@ -524,25 +893,37 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 credentials identify the application to the service; if none
                 are specified, the client will attempt to ascertain the
                 credentials from the environment.
-            transport (Union[str, VmwareEngineTransport]): The
-                transport to use. If set to None, a transport is chosen
-                automatically.
-            client_options (Optional[Union[google.api_core.client_options.ClientOptions, dict]]): Custom options for the
-                client. It won't take effect if a ``transport`` instance is provided.
-                (1) The ``api_endpoint`` property can be used to override the
-                default endpoint provided by the client. GOOGLE_API_USE_MTLS_ENDPOINT
-                environment variable can also be used to override the endpoint:
+            transport (Optional[Union[str,VmwareEngineTransport,Callable[..., VmwareEngineTransport]]]):
+                The transport to use, or a Callable that constructs and returns a new transport.
+                If a Callable is given, it will be called with the same set of initialization
+                arguments as used in the VmwareEngineTransport constructor.
+                If set to None, a transport is chosen automatically.
+            client_options (Optional[Union[google.api_core.client_options.ClientOptions, dict]]):
+                Custom options for the client.
+
+                1. The ``api_endpoint`` property can be used to override the
+                default endpoint provided by the client when ``transport`` is
+                not explicitly provided. Only if this property is not set and
+                ``transport`` was not explicitly provided, the endpoint is
+                determined by the GOOGLE_API_USE_MTLS_ENDPOINT environment
+                variable, which have one of the following values:
                 "always" (always use the default mTLS endpoint), "never" (always
-                use the default regular endpoint) and "auto" (auto switch to the
-                default mTLS endpoint if client certificate is present, this is
-                the default value). However, the ``api_endpoint`` property takes
-                precedence if provided.
-                (2) If GOOGLE_API_USE_CLIENT_CERTIFICATE environment variable
+                use the default regular endpoint) and "auto" (auto-switch to the
+                default mTLS endpoint if client certificate is present; this is
+                the default value).
+
+                2. If the GOOGLE_API_USE_CLIENT_CERTIFICATE environment variable
                 is "true", then the ``client_cert_source`` property can be used
-                to provide client certificate for mutual TLS transport. If
+                to provide a client certificate for mTLS transport. If
                 not provided, the default SSL client certificate will be used if
                 present. If GOOGLE_API_USE_CLIENT_CERTIFICATE is "false" or not
                 set, no client certificate will be used.
+
+                3. The ``universe_domain`` property can be used to override the
+                default "googleapis.com" universe. Note that the ``api_endpoint``
+                property still takes precedence; and ``universe_domain`` is
+                currently not supported for mTLS.
+
             client_info (google.api_core.gapic_v1.client_info.ClientInfo):
                 The client info used to send a user-agent string along with
                 API requests. If ``None``, then default info will be used.
@@ -553,17 +934,38 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             google.auth.exceptions.MutualTLSChannelError: If mutual TLS transport
                 creation failed for any reason.
         """
-        if isinstance(client_options, dict):
-            client_options = client_options_lib.from_dict(client_options)
-        if client_options is None:
-            client_options = client_options_lib.ClientOptions()
-        client_options = cast(client_options_lib.ClientOptions, client_options)
-
-        api_endpoint, client_cert_source_func = self.get_mtls_endpoint_and_cert_source(
-            client_options
+        self._client_options = client_options
+        if isinstance(self._client_options, dict):
+            self._client_options = client_options_lib.from_dict(self._client_options)
+        if self._client_options is None:
+            self._client_options = client_options_lib.ClientOptions()
+        self._client_options = cast(
+            client_options_lib.ClientOptions, self._client_options
         )
 
-        api_key_value = getattr(client_options, "api_key", None)
+        universe_domain_opt = getattr(self._client_options, "universe_domain", None)
+
+        (
+            self._use_client_cert,
+            self._use_mtls_endpoint,
+            self._universe_domain_env,
+        ) = VmwareEngineClient._read_environment_variables()
+        self._client_cert_source = VmwareEngineClient._get_client_cert_source(
+            self._client_options.client_cert_source, self._use_client_cert
+        )
+        self._universe_domain = VmwareEngineClient._get_universe_domain(
+            universe_domain_opt, self._universe_domain_env
+        )
+        self._api_endpoint = None  # updated below, depending on `transport`
+
+        # Initialize the universe domain validation.
+        self._is_universe_domain_valid = False
+
+        if CLIENT_LOGGING_SUPPORTED:  # pragma: NO COVER
+            # Setup logging.
+            client_logging.initialize_logging()
+
+        api_key_value = getattr(self._client_options, "api_key", None)
         if api_key_value and credentials:
             raise ValueError(
                 "client_options.api_key and credentials are mutually exclusive"
@@ -572,20 +974,30 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         # Save or instantiate the transport.
         # Ordinarily, we provide the transport, but allowing a custom transport
         # instance provides an extensibility point for unusual situations.
-        if isinstance(transport, VmwareEngineTransport):
+        transport_provided = isinstance(transport, VmwareEngineTransport)
+        if transport_provided:
             # transport is a VmwareEngineTransport instance.
-            if credentials or client_options.credentials_file or api_key_value:
+            if credentials or self._client_options.credentials_file or api_key_value:
                 raise ValueError(
                     "When providing a transport instance, "
                     "provide its credentials directly."
                 )
-            if client_options.scopes:
+            if self._client_options.scopes:
                 raise ValueError(
                     "When providing a transport instance, provide its scopes "
                     "directly."
                 )
-            self._transport = transport
-        else:
+            self._transport = cast(VmwareEngineTransport, transport)
+            self._api_endpoint = self._transport.host
+
+        self._api_endpoint = self._api_endpoint or VmwareEngineClient._get_api_endpoint(
+            self._client_options.api_endpoint,
+            self._client_cert_source,
+            self._universe_domain,
+            self._use_mtls_endpoint,
+        )
+
+        if not transport_provided:
             import google.auth._default  # type: ignore
 
             if api_key_value and hasattr(
@@ -595,18 +1007,48 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                     api_key_value
                 )
 
-            Transport = type(self).get_transport_class(transport)
-            self._transport = Transport(
+            transport_init: Union[
+                Type[VmwareEngineTransport], Callable[..., VmwareEngineTransport]
+            ] = (
+                VmwareEngineClient.get_transport_class(transport)
+                if isinstance(transport, str) or transport is None
+                else cast(Callable[..., VmwareEngineTransport], transport)
+            )
+            # initialize with the provided callable or the passed in class
+            self._transport = transport_init(
                 credentials=credentials,
-                credentials_file=client_options.credentials_file,
-                host=api_endpoint,
-                scopes=client_options.scopes,
-                client_cert_source_for_mtls=client_cert_source_func,
-                quota_project_id=client_options.quota_project_id,
+                credentials_file=self._client_options.credentials_file,
+                host=self._api_endpoint,
+                scopes=self._client_options.scopes,
+                client_cert_source_for_mtls=self._client_cert_source,
+                quota_project_id=self._client_options.quota_project_id,
                 client_info=client_info,
                 always_use_jwt_access=True,
-                api_audience=client_options.api_audience,
+                api_audience=self._client_options.api_audience,
             )
+
+        if "async" not in str(self._transport):
+            if CLIENT_LOGGING_SUPPORTED and _LOGGER.isEnabledFor(
+                std_logging.DEBUG
+            ):  # pragma: NO COVER
+                _LOGGER.debug(
+                    "Created client `google.cloud.vmwareengine_v1.VmwareEngineClient`.",
+                    extra={
+                        "serviceName": "google.cloud.vmwareengine.v1.VmwareEngine",
+                        "universeDomain": getattr(
+                            self._transport._credentials, "universe_domain", ""
+                        ),
+                        "credentialsType": f"{type(self._transport._credentials).__module__}.{type(self._transport._credentials).__qualname__}",
+                        "credentialsInfo": getattr(
+                            self.transport._credentials, "get_cred_info", lambda: None
+                        )(),
+                    }
+                    if hasattr(self._transport, "_credentials")
+                    else {
+                        "serviceName": "google.cloud.vmwareengine.v1.VmwareEngine",
+                        "credentialsType": None,
+                    },
+                )
 
     def list_private_clouds(
         self,
@@ -615,7 +1057,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         parent: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> pagers.ListPrivateCloudsPager:
         r"""Lists ``PrivateCloud`` resources in a given project and
         location.
@@ -656,7 +1098,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 queried for clusters. Resource names are schemeless URIs
                 that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
-                example: ``projects/my-project/locations/us-west1-a``
+                example: ``projects/my-project/locations/us-central1-a``
 
                 This corresponds to the ``parent`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -664,21 +1106,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListPrivateCloudsPager:
                 Response message for
-                [VmwareEngine.ListPrivateClouds][google.cloud.vmwareengine.v1.VmwareEngine.ListPrivateClouds]
+                   [VmwareEngine.ListPrivateClouds][google.cloud.vmwareengine.v1.VmwareEngine.ListPrivateClouds]
 
                 Iterating over this object will yield results and
                 resolve additional pages automatically.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -686,10 +1130,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ListPrivateCloudsRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ListPrivateCloudsRequest):
             request = vmwareengine.ListPrivateCloudsRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -707,6 +1149,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -721,6 +1166,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             method=rpc,
             request=request,
             response=response,
+            retry=retry,
+            timeout=timeout,
             metadata=metadata,
         )
 
@@ -734,8 +1181,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> vmwareengine.PrivateCloud:
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.PrivateCloud:
         r"""Retrieves a ``PrivateCloud`` resource by its resource name.
 
         .. code-block:: python
@@ -774,7 +1221,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``name`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -782,18 +1229,21 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.types.PrivateCloud:
-                Represents a private cloud resource.
-                Private clouds are zonal resources.
+                Represents a private cloud resource. Private clouds of type STANDARD and
+                   TIME_LIMITED are zonal resources, STRETCHED private
+                   clouds are regional.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -801,10 +1251,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.GetPrivateCloudRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.GetPrivateCloudRequest):
             request = vmwareengine.GetPrivateCloudRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -822,6 +1270,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -838,17 +1289,17 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         request: Optional[Union[vmwareengine.CreatePrivateCloudRequest, dict]] = None,
         *,
         parent: Optional[str] = None,
-        private_cloud: Optional[vmwareengine.PrivateCloud] = None,
+        private_cloud: Optional[vmwareengine_resources.PrivateCloud] = None,
         private_cloud_id: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Creates a new ``PrivateCloud`` resource in a given project and
-        location. Private clouds can only be created in zones, regional
-        private clouds are not supported.
-
-        Creating a private cloud also creates a `management
+        location. Private clouds of type ``STANDARD`` and
+        ``TIME_LIMITED`` are zonal resources, ``STRETCHED`` private
+        clouds are regional. Creating a private cloud also creates a
+        `management
         cluster <https://cloud.google.com/vmware-engine/docs/concepts-vmware-components>`__
         for that private cloud.
 
@@ -870,6 +1321,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 # Initialize request argument(s)
                 private_cloud = vmwareengine_v1.PrivateCloud()
                 private_cloud.network_config.management_cidr = "management_cidr_value"
+                private_cloud.management_cluster.cluster_id = "cluster_id_value"
 
                 request = vmwareengine_v1.CreatePrivateCloudRequest(
                     parent="parent_value",
@@ -896,7 +1348,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 the new private cloud in. Resource names are schemeless
                 URIs that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
-                example: ``projects/my-project/locations/us-west1-a``
+                example: ``projects/my-project/locations/us-central1-a``
 
                 This corresponds to the ``parent`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -930,22 +1382,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
                 An object representing a long-running operation.
 
-                The result type for the operation will be
-                :class:`google.cloud.vmwareengine_v1.types.PrivateCloud`
-                Represents a private cloud resource. Private clouds are
-                zonal resources.
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.PrivateCloud` Represents a private cloud resource. Private clouds of type STANDARD and
+                   TIME_LIMITED are zonal resources, STRETCHED private
+                   clouds are regional.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent, private_cloud, private_cloud_id])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -953,10 +1406,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.CreatePrivateCloudRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.CreatePrivateCloudRequest):
             request = vmwareengine.CreatePrivateCloudRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -978,6 +1429,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -990,7 +1444,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.PrivateCloud,
+            vmwareengine_resources.PrivateCloud,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -1001,11 +1455,11 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         self,
         request: Optional[Union[vmwareengine.UpdatePrivateCloudRequest, dict]] = None,
         *,
-        private_cloud: Optional[vmwareengine.PrivateCloud] = None,
+        private_cloud: Optional[vmwareengine_resources.PrivateCloud] = None,
         update_mask: Optional[field_mask_pb2.FieldMask] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Modifies a ``PrivateCloud`` resource. Only the following fields
         can be updated: ``description``. Only fields specified in
@@ -1034,6 +1488,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 # Initialize request argument(s)
                 private_cloud = vmwareengine_v1.PrivateCloud()
                 private_cloud.network_config.management_cidr = "management_cidr_value"
+                private_cloud.management_cluster.cluster_id = "cluster_id_value"
 
                 request = vmwareengine_v1.UpdatePrivateCloudRequest(
                     private_cloud=private_cloud,
@@ -1073,22 +1528,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
                 An object representing a long-running operation.
 
-                The result type for the operation will be
-                :class:`google.cloud.vmwareengine_v1.types.PrivateCloud`
-                Represents a private cloud resource. Private clouds are
-                zonal resources.
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.PrivateCloud` Represents a private cloud resource. Private clouds of type STANDARD and
+                   TIME_LIMITED are zonal resources, STRETCHED private
+                   clouds are regional.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([private_cloud, update_mask])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -1096,10 +1552,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.UpdatePrivateCloudRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.UpdatePrivateCloudRequest):
             request = vmwareengine.UpdatePrivateCloudRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -1121,6 +1575,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             ),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -1133,7 +1590,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.PrivateCloud,
+            vmwareengine_resources.PrivateCloud,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -1147,7 +1604,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Schedules a ``PrivateCloud`` resource for deletion.
 
@@ -1208,7 +1665,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``name`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -1216,22 +1673,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
                 An object representing a long-running operation.
 
-                The result type for the operation will be
-                :class:`google.cloud.vmwareengine_v1.types.PrivateCloud`
-                Represents a private cloud resource. Private clouds are
-                zonal resources.
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.PrivateCloud` Represents a private cloud resource. Private clouds of type STANDARD and
+                   TIME_LIMITED are zonal resources, STRETCHED private
+                   clouds are regional.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -1239,10 +1697,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.DeletePrivateCloudRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.DeletePrivateCloudRequest):
             request = vmwareengine.DeletePrivateCloudRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -1260,6 +1716,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -1272,7 +1731,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.PrivateCloud,
+            vmwareengine_resources.PrivateCloud,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -1286,7 +1745,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Restores a private cloud that was previously scheduled for
         deletion by ``DeletePrivateCloud``. A ``PrivateCloud`` resource
@@ -1334,7 +1793,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 URIs that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``name`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -1342,22 +1801,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
                 An object representing a long-running operation.
 
-                The result type for the operation will be
-                :class:`google.cloud.vmwareengine_v1.types.PrivateCloud`
-                Represents a private cloud resource. Private clouds are
-                zonal resources.
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.PrivateCloud` Represents a private cloud resource. Private clouds of type STANDARD and
+                   TIME_LIMITED are zonal resources, STRETCHED private
+                   clouds are regional.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -1365,10 +1825,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.UndeletePrivateCloudRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.UndeletePrivateCloudRequest):
             request = vmwareengine.UndeletePrivateCloudRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -1386,6 +1844,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -1398,7 +1859,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.PrivateCloud,
+            vmwareengine_resources.PrivateCloud,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -1412,7 +1873,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         parent: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> pagers.ListClustersPager:
         r"""Lists ``Cluster`` resources in a given private cloud.
 
@@ -1453,7 +1914,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``parent`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -1461,21 +1922,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListClustersPager:
                 Response message for
-                [VmwareEngine.ListClusters][google.cloud.vmwareengine.v1.VmwareEngine.ListClusters]
+                   [VmwareEngine.ListClusters][google.cloud.vmwareengine.v1.VmwareEngine.ListClusters]
 
                 Iterating over this object will yield results and
                 resolve additional pages automatically.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -1483,10 +1946,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ListClustersRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ListClustersRequest):
             request = vmwareengine.ListClustersRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -1504,6 +1965,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -1518,6 +1982,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             method=rpc,
             request=request,
             response=response,
+            retry=retry,
+            timeout=timeout,
             metadata=metadata,
         )
 
@@ -1531,8 +1997,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> vmwareengine.Cluster:
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.Cluster:
         r"""Retrieves a ``Cluster`` resource by its resource name.
 
         .. code-block:: python
@@ -1571,7 +2037,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud/clusters/my-cluster``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/clusters/my-cluster``
 
                 This corresponds to the ``name`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -1579,16 +2045,18 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.types.Cluster:
                 A cluster in a private cloud.
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -1596,10 +2064,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.GetClusterRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.GetClusterRequest):
             request = vmwareengine.GetClusterRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -1617,6 +2083,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -1633,11 +2102,11 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         request: Optional[Union[vmwareengine.CreateClusterRequest, dict]] = None,
         *,
         parent: Optional[str] = None,
-        cluster: Optional[vmwareengine.Cluster] = None,
+        cluster: Optional[vmwareengine_resources.Cluster] = None,
         cluster_id: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Creates a new cluster in a given private cloud. Creating a new
         cluster provides additional nodes for use in the parent private
@@ -1685,7 +2154,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 URIs that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``parent`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -1719,8 +2188,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -1732,8 +2203,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent, cluster, cluster_id])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -1741,10 +2212,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.CreateClusterRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.CreateClusterRequest):
             request = vmwareengine.CreateClusterRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -1766,6 +2235,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -1778,7 +2250,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.Cluster,
+            vmwareengine_resources.Cluster,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -1789,15 +2261,14 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         self,
         request: Optional[Union[vmwareengine.UpdateClusterRequest, dict]] = None,
         *,
-        cluster: Optional[vmwareengine.Cluster] = None,
+        cluster: Optional[vmwareengine_resources.Cluster] = None,
         update_mask: Optional[field_mask_pb2.FieldMask] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
-        r"""Modifies a ``Cluster`` resource. Only the following fields can
-        be updated: ``node_type_configs.*.node_count``. Only fields
-        specified in ``updateMask`` are applied.
+        r"""Modifies a ``Cluster`` resource. Only fields specified in
+        ``updateMask`` are applied.
 
         During operation processing, the resource is temporarily in the
         ``ACTIVE`` state before the operation fully completes. For that
@@ -1858,8 +2329,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -1871,8 +2344,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([cluster, update_mask])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -1880,10 +2353,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.UpdateClusterRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.UpdateClusterRequest):
             request = vmwareengine.UpdateClusterRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -1905,6 +2376,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             ),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -1917,7 +2391,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.Cluster,
+            vmwareengine_resources.Cluster,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -1931,7 +2405,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Deletes a ``Cluster`` resource. To avoid unintended data loss,
         migrate or gracefully shut down any workloads running on the
@@ -1978,7 +2452,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud/clusters/my-cluster``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/clusters/my-cluster``
 
                 This corresponds to the ``name`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -1986,8 +2460,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -2006,8 +2482,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2015,10 +2491,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.DeleteClusterRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.DeleteClusterRequest):
             request = vmwareengine.DeleteClusterRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -2035,6 +2509,1048 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            empty_pb2.Empty,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_nodes(
+        self,
+        request: Optional[Union[vmwareengine.ListNodesRequest, dict]] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListNodesPager:
+        r"""Lists nodes in a given cluster.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_nodes():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListNodesRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_nodes(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListNodesRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListNodes][google.cloud.vmwareengine.v1.VmwareEngine.ListNodes]
+            parent (str):
+                Required. The resource name of the cluster to be queried
+                for nodes. Resource names are schemeless URIs that
+                follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/clusters/my-cluster``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListNodesPager:
+                Response message for
+                   [VmwareEngine.ListNodes][google.cloud.vmwareengine.v1.VmwareEngine.ListNodes]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.ListNodesRequest):
+            request = vmwareengine.ListNodesRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.list_nodes]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListNodesPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_node(
+        self,
+        request: Optional[Union[vmwareengine.GetNodeRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.Node:
+        r"""Gets details of a single node.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_node():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetNodeRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_node(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetNodeRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetNode][google.cloud.vmwareengine.v1.VmwareEngine.GetNode]
+            name (str):
+                Required. The resource name of the node to retrieve. For
+                example:
+                ``projects/{project}/locations/{location}/privateClouds/{private_cloud}/clusters/{cluster}/nodes/{node}``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.Node:
+                Node in a cluster.
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetNodeRequest):
+            request = vmwareengine.GetNodeRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_node]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_external_addresses(
+        self,
+        request: Optional[
+            Union[vmwareengine.ListExternalAddressesRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListExternalAddressesPager:
+        r"""Lists external IP addresses assigned to VMware
+        workload VMs in a given private cloud.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_external_addresses():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListExternalAddressesRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_external_addresses(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListExternalAddressesRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListExternalAddresses][google.cloud.vmwareengine.v1.VmwareEngine.ListExternalAddresses]
+            parent (str):
+                Required. The resource name of the private cloud to be
+                queried for external IP addresses. Resource names are
+                schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListExternalAddressesPager:
+                Response message for
+                   [VmwareEngine.ListExternalAddresses][google.cloud.vmwareengine.v1.VmwareEngine.ListExternalAddresses]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.ListExternalAddressesRequest):
+            request = vmwareengine.ListExternalAddressesRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.list_external_addresses]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListExternalAddressesPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def fetch_network_policy_external_addresses(
+        self,
+        request: Optional[
+            Union[vmwareengine.FetchNetworkPolicyExternalAddressesRequest, dict]
+        ] = None,
+        *,
+        network_policy: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.FetchNetworkPolicyExternalAddressesPager:
+        r"""Lists external IP addresses assigned to VMware
+        workload VMs within the scope of the given network
+        policy.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_fetch_network_policy_external_addresses():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.FetchNetworkPolicyExternalAddressesRequest(
+                    network_policy="network_policy_value",
+                )
+
+                # Make the request
+                page_result = client.fetch_network_policy_external_addresses(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.FetchNetworkPolicyExternalAddressesRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.FetchNetworkPolicyExternalAddresses][google.cloud.vmwareengine.v1.VmwareEngine.FetchNetworkPolicyExternalAddresses]
+            network_policy (str):
+                Required. The resource name of the network policy to
+                query for assigned external IP addresses. Resource names
+                are schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1/networkPolicies/my-policy``
+
+                This corresponds to the ``network_policy`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.FetchNetworkPolicyExternalAddressesPager:
+                Response message for
+                   [VmwareEngine.FetchNetworkPolicyExternalAddresses][google.cloud.vmwareengine.v1.VmwareEngine.FetchNetworkPolicyExternalAddresses]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([network_policy])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(
+            request, vmwareengine.FetchNetworkPolicyExternalAddressesRequest
+        ):
+            request = vmwareengine.FetchNetworkPolicyExternalAddressesRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if network_policy is not None:
+                request.network_policy = network_policy
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.fetch_network_policy_external_addresses
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("network_policy", request.network_policy),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.FetchNetworkPolicyExternalAddressesPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_external_address(
+        self,
+        request: Optional[Union[vmwareengine.GetExternalAddressRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.ExternalAddress:
+        r"""Gets details of a single external IP address.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_external_address():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetExternalAddressRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_external_address(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetExternalAddressRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetExternalAddress][google.cloud.vmwareengine.v1.VmwareEngine.GetExternalAddress]
+            name (str):
+                Required. The resource name of the external IP address
+                to retrieve. Resource names are schemeless URIs that
+                follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/externalAddresses/my-ip``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.ExternalAddress:
+                Represents an allocated external IP
+                address and its corresponding internal
+                IP address in a private cloud.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetExternalAddressRequest):
+            request = vmwareengine.GetExternalAddressRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_external_address]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def create_external_address(
+        self,
+        request: Optional[
+            Union[vmwareengine.CreateExternalAddressRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        external_address: Optional[vmwareengine_resources.ExternalAddress] = None,
+        external_address_id: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Creates a new ``ExternalAddress`` resource in a given private
+        cloud. The network policy that corresponds to the private cloud
+        must have the external IP address network service enabled
+        (``NetworkPolicy.external_ip``).
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_create_external_address():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.CreateExternalAddressRequest(
+                    parent="parent_value",
+                    external_address_id="external_address_id_value",
+                )
+
+                # Make the request
+                operation = client.create_external_address(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.CreateExternalAddressRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.CreateExternalAddress][google.cloud.vmwareengine.v1.VmwareEngine.CreateExternalAddress]
+            parent (str):
+                Required. The resource name of the private cloud to
+                create a new external IP address in. Resource names are
+                schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            external_address (google.cloud.vmwareengine_v1.types.ExternalAddress):
+                Required. The initial description of
+                a new external IP address.
+
+                This corresponds to the ``external_address`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            external_address_id (str):
+                Required. The user-provided identifier of the
+                ``ExternalAddress`` to be created. This identifier must
+                be unique among ``ExternalAddress`` resources within the
+                parent and becomes the final token in the name URI. The
+                identifier must meet the following requirements:
+
+                -  Only contains 1-63 alphanumeric characters and
+                   hyphens
+                -  Begins with an alphabetical character
+                -  Ends with a non-hyphen character
+                -  Not formatted as a UUID
+                -  Complies with `RFC
+                   1034 <https://datatracker.ietf.org/doc/html/rfc1034>`__
+                   (section 3.5)
+
+                This corresponds to the ``external_address_id`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.ExternalAddress` Represents an allocated external IP address and its corresponding internal IP
+                   address in a private cloud.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent, external_address, external_address_id])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.CreateExternalAddressRequest):
+            request = vmwareengine.CreateExternalAddressRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+            if external_address is not None:
+                request.external_address = external_address
+            if external_address_id is not None:
+                request.external_address_id = external_address_id
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.create_external_address]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.ExternalAddress,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def update_external_address(
+        self,
+        request: Optional[
+            Union[vmwareengine.UpdateExternalAddressRequest, dict]
+        ] = None,
+        *,
+        external_address: Optional[vmwareengine_resources.ExternalAddress] = None,
+        update_mask: Optional[field_mask_pb2.FieldMask] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Updates the parameters of a single external IP address. Only
+        fields specified in ``update_mask`` are applied.
+
+        During operation processing, the resource is temporarily in the
+        ``ACTIVE`` state before the operation fully completes. For that
+        period of time, you can't update the resource. Use the operation
+        status to determine when the processing fully completes.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_update_external_address():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.UpdateExternalAddressRequest(
+                )
+
+                # Make the request
+                operation = client.update_external_address(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.UpdateExternalAddressRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.UpdateExternalAddress][google.cloud.vmwareengine.v1.VmwareEngine.UpdateExternalAddress]
+            external_address (google.cloud.vmwareengine_v1.types.ExternalAddress):
+                Required. External IP address
+                description.
+
+                This corresponds to the ``external_address`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            update_mask (google.protobuf.field_mask_pb2.FieldMask):
+                Required. Field mask is used to specify the fields to be
+                overwritten in the ``ExternalAddress`` resource by the
+                update. The fields specified in the ``update_mask`` are
+                relative to the resource, not the full request. A field
+                will be overwritten if it is in the mask. If the user
+                does not provide a mask then all fields will be
+                overwritten.
+
+                This corresponds to the ``update_mask`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.ExternalAddress` Represents an allocated external IP address and its corresponding internal IP
+                   address in a private cloud.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([external_address, update_mask])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.UpdateExternalAddressRequest):
+            request = vmwareengine.UpdateExternalAddressRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if external_address is not None:
+                request.external_address = external_address
+            if update_mask is not None:
+                request.update_mask = update_mask
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.update_external_address]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("external_address.name", request.external_address.name),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.ExternalAddress,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def delete_external_address(
+        self,
+        request: Optional[
+            Union[vmwareengine.DeleteExternalAddressRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Deletes a single external IP address. When you delete
+        an external IP address, connectivity between the
+        external IP address and the corresponding internal IP
+        address is lost.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_delete_external_address():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.DeleteExternalAddressRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                operation = client.delete_external_address(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.DeleteExternalAddressRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.DeleteExternalAddress][google.cloud.vmwareengine.v1.VmwareEngine.DeleteExternalAddress]
+            name (str):
+                Required. The resource name of the external IP address
+                to delete. Resource names are schemeless URIs that
+                follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/externalAddresses/my-ip``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.protobuf.empty_pb2.Empty` A generic empty message that you can re-use to avoid defining duplicated
+                   empty messages in your APIs. A typical example is to
+                   use it as the request or the response type of an API
+                   method. For instance:
+
+                      service Foo {
+                         rpc Bar(google.protobuf.Empty) returns
+                         (google.protobuf.Empty);
+
+                      }
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.DeleteExternalAddressRequest):
+            request = vmwareengine.DeleteExternalAddressRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.delete_external_address]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -2062,7 +3578,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         parent: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> pagers.ListSubnetsPager:
         r"""Lists subnets in a given private cloud.
 
@@ -2103,7 +3619,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``parent`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -2111,21 +3627,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListSubnetsPager:
                 Response message for
-                [VmwareEngine.ListSubnets][google.cloud.vmwareengine.v1.VmwareEngine.ListSubnets]
+                   [VmwareEngine.ListSubnets][google.cloud.vmwareengine.v1.VmwareEngine.ListSubnets]
 
                 Iterating over this object will yield results and
                 resolve additional pages automatically.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2133,10 +3651,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ListSubnetsRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ListSubnetsRequest):
             request = vmwareengine.ListSubnetsRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -2154,6 +3670,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -2168,7 +3687,1612 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             method=rpc,
             request=request,
             response=response,
+            retry=retry,
+            timeout=timeout,
             metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_subnet(
+        self,
+        request: Optional[Union[vmwareengine.GetSubnetRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.Subnet:
+        r"""Gets details of a single subnet.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_subnet():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetSubnetRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_subnet(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetSubnetRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetSubnet][google.cloud.vmwareengine.v1.VmwareEngine.GetSubnet]
+            name (str):
+                Required. The resource name of the subnet to retrieve.
+                Resource names are schemeless URIs that follow the
+                conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/subnets/my-subnet``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.Subnet:
+                Subnet in a private cloud. Either management subnets (such as vMotion) that
+                   are read-only, or userDefined, which can also be
+                   updated.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetSubnetRequest):
+            request = vmwareengine.GetSubnetRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_subnet]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def update_subnet(
+        self,
+        request: Optional[Union[vmwareengine.UpdateSubnetRequest, dict]] = None,
+        *,
+        subnet: Optional[vmwareengine_resources.Subnet] = None,
+        update_mask: Optional[field_mask_pb2.FieldMask] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Updates the parameters of a single subnet. Only fields specified
+        in ``update_mask`` are applied.
+
+        *Note*: This API is synchronous and always returns a successful
+        ``google.longrunning.Operation`` (LRO). The returned LRO will
+        only have ``done`` and ``response`` fields.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_update_subnet():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.UpdateSubnetRequest(
+                )
+
+                # Make the request
+                operation = client.update_subnet(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.UpdateSubnetRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.UpdateSubnet][google.cloud.vmwareengine.v1.VmwareEngine.UpdateSubnet]
+            subnet (google.cloud.vmwareengine_v1.types.Subnet):
+                Required. Subnet description.
+                This corresponds to the ``subnet`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            update_mask (google.protobuf.field_mask_pb2.FieldMask):
+                Required. Field mask is used to specify the fields to be
+                overwritten in the ``Subnet`` resource by the update.
+                The fields specified in the ``update_mask`` are relative
+                to the resource, not the full request. A field will be
+                overwritten if it is in the mask. If the user does not
+                provide a mask then all fields will be overwritten.
+
+                This corresponds to the ``update_mask`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.Subnet` Subnet in a private cloud. Either management subnets (such as vMotion) that
+                   are read-only, or userDefined, which can also be
+                   updated.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([subnet, update_mask])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.UpdateSubnetRequest):
+            request = vmwareengine.UpdateSubnetRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if subnet is not None:
+                request.subnet = subnet
+            if update_mask is not None:
+                request.update_mask = update_mask
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.update_subnet]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("subnet.name", request.subnet.name),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.Subnet,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_external_access_rules(
+        self,
+        request: Optional[
+            Union[vmwareengine.ListExternalAccessRulesRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListExternalAccessRulesPager:
+        r"""Lists ``ExternalAccessRule`` resources in the specified network
+        policy.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_external_access_rules():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListExternalAccessRulesRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_external_access_rules(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListExternalAccessRulesRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListExternalAccessRules][google.cloud.vmwareengine.v1.VmwareEngine.ListExternalAccessRules]
+            parent (str):
+                Required. The resource name of the network policy to
+                query for external access firewall rules. Resource names
+                are schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1/networkPolicies/my-policy``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListExternalAccessRulesPager:
+                Response message for
+                   [VmwareEngine.ListExternalAccessRules][google.cloud.vmwareengine.v1.VmwareEngine.ListExternalAccessRules]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.ListExternalAccessRulesRequest):
+            request = vmwareengine.ListExternalAccessRulesRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.list_external_access_rules
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListExternalAccessRulesPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_external_access_rule(
+        self,
+        request: Optional[
+            Union[vmwareengine.GetExternalAccessRuleRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.ExternalAccessRule:
+        r"""Gets details of a single external access rule.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_external_access_rule():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetExternalAccessRuleRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_external_access_rule(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetExternalAccessRuleRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetExternalAccessRule][google.cloud.vmwareengine.v1.VmwareEngine.GetExternalAccessRule]
+            name (str):
+                Required. The resource name of the external access
+                firewall rule to retrieve. Resource names are schemeless
+                URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1/networkPolicies/my-policy/externalAccessRules/my-rule``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.ExternalAccessRule:
+                External access firewall rules for filtering incoming traffic destined to
+                   ExternalAddress resources.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetExternalAccessRuleRequest):
+            request = vmwareengine.GetExternalAccessRuleRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_external_access_rule]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def create_external_access_rule(
+        self,
+        request: Optional[
+            Union[vmwareengine.CreateExternalAccessRuleRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        external_access_rule: Optional[
+            vmwareengine_resources.ExternalAccessRule
+        ] = None,
+        external_access_rule_id: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Creates a new external access rule in a given network
+        policy.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_create_external_access_rule():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.CreateExternalAccessRuleRequest(
+                    parent="parent_value",
+                    external_access_rule_id="external_access_rule_id_value",
+                )
+
+                # Make the request
+                operation = client.create_external_access_rule(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.CreateExternalAccessRuleRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.CreateExternalAccessRule][google.cloud.vmwareengine.v1.VmwareEngine.CreateExternalAccessRule]
+            parent (str):
+                Required. The resource name of the network policy to
+                create a new external access firewall rule in. Resource
+                names are schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1/networkPolicies/my-policy``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            external_access_rule (google.cloud.vmwareengine_v1.types.ExternalAccessRule):
+                Required. The initial description of
+                a new external access rule.
+
+                This corresponds to the ``external_access_rule`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            external_access_rule_id (str):
+                Required. The user-provided identifier of the
+                ``ExternalAccessRule`` to be created. This identifier
+                must be unique among ``ExternalAccessRule`` resources
+                within the parent and becomes the final token in the
+                name URI. The identifier must meet the following
+                requirements:
+
+                -  Only contains 1-63 alphanumeric characters and
+                   hyphens
+                -  Begins with an alphabetical character
+                -  Ends with a non-hyphen character
+                -  Not formatted as a UUID
+                -  Complies with `RFC
+                   1034 <https://datatracker.ietf.org/doc/html/rfc1034>`__
+                   (section 3.5)
+
+                This corresponds to the ``external_access_rule_id`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.ExternalAccessRule` External access firewall rules for filtering incoming traffic destined to
+                   ExternalAddress resources.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any(
+            [parent, external_access_rule, external_access_rule_id]
+        )
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.CreateExternalAccessRuleRequest):
+            request = vmwareengine.CreateExternalAccessRuleRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+            if external_access_rule is not None:
+                request.external_access_rule = external_access_rule
+            if external_access_rule_id is not None:
+                request.external_access_rule_id = external_access_rule_id
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.create_external_access_rule
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.ExternalAccessRule,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def update_external_access_rule(
+        self,
+        request: Optional[
+            Union[vmwareengine.UpdateExternalAccessRuleRequest, dict]
+        ] = None,
+        *,
+        external_access_rule: Optional[
+            vmwareengine_resources.ExternalAccessRule
+        ] = None,
+        update_mask: Optional[field_mask_pb2.FieldMask] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Updates the parameters of a single external access rule. Only
+        fields specified in ``update_mask`` are applied.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_update_external_access_rule():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.UpdateExternalAccessRuleRequest(
+                )
+
+                # Make the request
+                operation = client.update_external_access_rule(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.UpdateExternalAccessRuleRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.UpdateExternalAccessRule][google.cloud.vmwareengine.v1.VmwareEngine.UpdateExternalAccessRule]
+            external_access_rule (google.cloud.vmwareengine_v1.types.ExternalAccessRule):
+                Required. Description of the external
+                access rule.
+
+                This corresponds to the ``external_access_rule`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            update_mask (google.protobuf.field_mask_pb2.FieldMask):
+                Required. Field mask is used to specify the fields to be
+                overwritten in the ``ExternalAccessRule`` resource by
+                the update. The fields specified in the ``update_mask``
+                are relative to the resource, not the full request. A
+                field will be overwritten if it is in the mask. If the
+                user does not provide a mask then all fields will be
+                overwritten.
+
+                This corresponds to the ``update_mask`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.ExternalAccessRule` External access firewall rules for filtering incoming traffic destined to
+                   ExternalAddress resources.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([external_access_rule, update_mask])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.UpdateExternalAccessRuleRequest):
+            request = vmwareengine.UpdateExternalAccessRuleRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if external_access_rule is not None:
+                request.external_access_rule = external_access_rule
+            if update_mask is not None:
+                request.update_mask = update_mask
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.update_external_access_rule
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("external_access_rule.name", request.external_access_rule.name),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.ExternalAccessRule,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def delete_external_access_rule(
+        self,
+        request: Optional[
+            Union[vmwareengine.DeleteExternalAccessRuleRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Deletes a single external access rule.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_delete_external_access_rule():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.DeleteExternalAccessRuleRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                operation = client.delete_external_access_rule(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.DeleteExternalAccessRuleRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.DeleteExternalAccessRule][google.cloud.vmwareengine.v1.VmwareEngine.DeleteExternalAccessRule]
+            name (str):
+                Required. The resource name of the external access
+                firewall rule to delete. Resource names are schemeless
+                URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1/networkPolicies/my-policy/externalAccessRules/my-rule``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.protobuf.empty_pb2.Empty` A generic empty message that you can re-use to avoid defining duplicated
+                   empty messages in your APIs. A typical example is to
+                   use it as the request or the response type of an API
+                   method. For instance:
+
+                      service Foo {
+                         rpc Bar(google.protobuf.Empty) returns
+                         (google.protobuf.Empty);
+
+                      }
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.DeleteExternalAccessRuleRequest):
+            request = vmwareengine.DeleteExternalAccessRuleRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.delete_external_access_rule
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            empty_pb2.Empty,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_logging_servers(
+        self,
+        request: Optional[Union[vmwareengine.ListLoggingServersRequest, dict]] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListLoggingServersPager:
+        r"""Lists logging servers configured for a given private
+        cloud.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_logging_servers():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListLoggingServersRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_logging_servers(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListLoggingServersRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListLoggingServers][google.cloud.vmwareengine.v1.VmwareEngine.ListLoggingServers]
+            parent (str):
+                Required. The resource name of the private cloud to be
+                queried for logging servers. Resource names are
+                schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListLoggingServersPager:
+                Response message for
+                   [VmwareEngine.ListLoggingServers][google.cloud.vmwareengine.v1.VmwareEngine.ListLoggingServers]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.ListLoggingServersRequest):
+            request = vmwareengine.ListLoggingServersRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.list_logging_servers]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListLoggingServersPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_logging_server(
+        self,
+        request: Optional[Union[vmwareengine.GetLoggingServerRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.LoggingServer:
+        r"""Gets details of a logging server.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_logging_server():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetLoggingServerRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_logging_server(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetLoggingServerRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetLoggingServer][google.cloud.vmwareengine.v1.VmwareEngine.GetLoggingServer]
+            name (str):
+                Required. The resource name of the Logging Server to
+                retrieve. Resource names are schemeless URIs that follow
+                the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/loggingServers/my-logging-server``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.LoggingServer:
+                Logging server to receive vCenter or
+                ESXi logs.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetLoggingServerRequest):
+            request = vmwareengine.GetLoggingServerRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_logging_server]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def create_logging_server(
+        self,
+        request: Optional[Union[vmwareengine.CreateLoggingServerRequest, dict]] = None,
+        *,
+        parent: Optional[str] = None,
+        logging_server: Optional[vmwareengine_resources.LoggingServer] = None,
+        logging_server_id: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Create a new logging server for a given private
+        cloud.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_create_logging_server():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                logging_server = vmwareengine_v1.LoggingServer()
+                logging_server.hostname = "hostname_value"
+                logging_server.port = 453
+                logging_server.protocol = "RELP"
+                logging_server.source_type = "VCSA"
+
+                request = vmwareengine_v1.CreateLoggingServerRequest(
+                    parent="parent_value",
+                    logging_server=logging_server,
+                    logging_server_id="logging_server_id_value",
+                )
+
+                # Make the request
+                operation = client.create_logging_server(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.CreateLoggingServerRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.CreateLoggingServer][google.cloud.vmwareengine.v1.VmwareEngine.CreateLoggingServer]
+            parent (str):
+                Required. The resource name of the private cloud to
+                create a new Logging Server in. Resource names are
+                schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            logging_server (google.cloud.vmwareengine_v1.types.LoggingServer):
+                Required. The initial description of
+                a new logging server.
+
+                This corresponds to the ``logging_server`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            logging_server_id (str):
+                Required. The user-provided identifier of the
+                ``LoggingServer`` to be created. This identifier must be
+                unique among ``LoggingServer`` resources within the
+                parent and becomes the final token in the name URI. The
+                identifier must meet the following requirements:
+
+                -  Only contains 1-63 alphanumeric characters and
+                   hyphens
+                -  Begins with an alphabetical character
+                -  Ends with a non-hyphen character
+                -  Not formatted as a UUID
+                -  Complies with `RFC
+                   1034 <https://datatracker.ietf.org/doc/html/rfc1034>`__
+                   (section 3.5)
+
+                This corresponds to the ``logging_server_id`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be
+                :class:`google.cloud.vmwareengine_v1.types.LoggingServer`
+                Logging server to receive vCenter or ESXi logs.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent, logging_server, logging_server_id])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.CreateLoggingServerRequest):
+            request = vmwareengine.CreateLoggingServerRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+            if logging_server is not None:
+                request.logging_server = logging_server
+            if logging_server_id is not None:
+                request.logging_server_id = logging_server_id
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.create_logging_server]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.LoggingServer,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def update_logging_server(
+        self,
+        request: Optional[Union[vmwareengine.UpdateLoggingServerRequest, dict]] = None,
+        *,
+        logging_server: Optional[vmwareengine_resources.LoggingServer] = None,
+        update_mask: Optional[field_mask_pb2.FieldMask] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Updates the parameters of a single logging server. Only fields
+        specified in ``update_mask`` are applied.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_update_logging_server():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                logging_server = vmwareengine_v1.LoggingServer()
+                logging_server.hostname = "hostname_value"
+                logging_server.port = 453
+                logging_server.protocol = "RELP"
+                logging_server.source_type = "VCSA"
+
+                request = vmwareengine_v1.UpdateLoggingServerRequest(
+                    logging_server=logging_server,
+                )
+
+                # Make the request
+                operation = client.update_logging_server(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.UpdateLoggingServerRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.UpdateLoggingServer][google.cloud.vmwareengine.v1.VmwareEngine.UpdateLoggingServer]
+            logging_server (google.cloud.vmwareengine_v1.types.LoggingServer):
+                Required. Logging server description.
+                This corresponds to the ``logging_server`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            update_mask (google.protobuf.field_mask_pb2.FieldMask):
+                Required. Field mask is used to specify the fields to be
+                overwritten in the ``LoggingServer`` resource by the
+                update. The fields specified in the ``update_mask`` are
+                relative to the resource, not the full request. A field
+                will be overwritten if it is in the mask. If the user
+                does not provide a mask then all fields will be
+                overwritten.
+
+                This corresponds to the ``update_mask`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be
+                :class:`google.cloud.vmwareengine_v1.types.LoggingServer`
+                Logging server to receive vCenter or ESXi logs.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([logging_server, update_mask])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.UpdateLoggingServerRequest):
+            request = vmwareengine.UpdateLoggingServerRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if logging_server is not None:
+                request.logging_server = logging_server
+            if update_mask is not None:
+                request.update_mask = update_mask
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.update_logging_server]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("logging_server.name", request.logging_server.name),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.LoggingServer,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def delete_logging_server(
+        self,
+        request: Optional[Union[vmwareengine.DeleteLoggingServerRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Deletes a single logging server.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_delete_logging_server():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.DeleteLoggingServerRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                operation = client.delete_logging_server(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.DeleteLoggingServerRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.DeleteLoggingServer][google.cloud.vmwareengine.v1.VmwareEngine.DeleteLoggingServer]
+            name (str):
+                Required. The resource name of the logging server to
+                delete. Resource names are schemeless URIs that follow
+                the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/loggingServers/my-logging-server``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.protobuf.empty_pb2.Empty` A generic empty message that you can re-use to avoid defining duplicated
+                   empty messages in your APIs. A typical example is to
+                   use it as the request or the response type of an API
+                   method. For instance:
+
+                      service Foo {
+                         rpc Bar(google.protobuf.Empty) returns
+                         (google.protobuf.Empty);
+
+                      }
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.DeleteLoggingServerRequest):
+            request = vmwareengine.DeleteLoggingServerRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.delete_logging_server]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            empty_pb2.Empty,
+            metadata_type=vmwareengine.OperationMetadata,
         )
 
         # Done; return the response.
@@ -2181,7 +5305,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         parent: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> pagers.ListNodeTypesPager:
         r"""Lists node types
 
@@ -2221,7 +5345,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 queried for node types. Resource names are schemeless
                 URIs that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
-                example: ``projects/my-project/locations/us-west1-a``
+                example: ``projects/my-project/locations/us-central1-a``
 
                 This corresponds to the ``parent`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -2229,21 +5353,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListNodeTypesPager:
                 Response message for
-                [VmwareEngine.ListNodeTypes][google.cloud.vmwareengine.v1.VmwareEngine.ListNodeTypes]
+                   [VmwareEngine.ListNodeTypes][google.cloud.vmwareengine.v1.VmwareEngine.ListNodeTypes]
 
                 Iterating over this object will yield results and
                 resolve additional pages automatically.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2251,10 +5377,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ListNodeTypesRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ListNodeTypesRequest):
             request = vmwareengine.ListNodeTypesRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -2272,6 +5396,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -2286,6 +5413,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             method=rpc,
             request=request,
             response=response,
+            retry=retry,
+            timeout=timeout,
             metadata=metadata,
         )
 
@@ -2299,8 +5428,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> vmwareengine.NodeType:
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.NodeType:
         r"""Gets details of a single ``NodeType``.
 
         .. code-block:: python
@@ -2339,7 +5468,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-proj/locations/us-west1-a/nodeTypes/standard-72``
+                ``projects/my-proj/locations/us-central1-a/nodeTypes/standard-72``
 
                 This corresponds to the ``name`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -2347,16 +5476,18 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.types.NodeType:
                 Describes node type.
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2364,10 +5495,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.GetNodeTypeRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.GetNodeTypeRequest):
             request = vmwareengine.GetNodeTypeRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -2384,6 +5513,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -2403,8 +5535,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         private_cloud: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> vmwareengine.Credentials:
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.Credentials:
         r"""Gets details of credentials for NSX appliance.
 
         .. code-block:: python
@@ -2443,7 +5575,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 URIs that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``private_cloud`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -2451,16 +5583,18 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.types.Credentials:
                 Credentials for a private cloud.
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([private_cloud])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2468,10 +5602,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ShowNsxCredentialsRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ShowNsxCredentialsRequest):
             request = vmwareengine.ShowNsxCredentialsRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -2490,6 +5622,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 (("private_cloud", request.private_cloud),)
             ),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -2511,8 +5646,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         private_cloud: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> vmwareengine.Credentials:
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.Credentials:
         r"""Gets details of credentials for Vcenter appliance.
 
         .. code-block:: python
@@ -2551,7 +5686,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 URIs that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``private_cloud`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -2559,16 +5694,18 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.types.Credentials:
                 Credentials for a private cloud.
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([private_cloud])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2576,10 +5713,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ShowVcenterCredentialsRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ShowVcenterCredentialsRequest):
             request = vmwareengine.ShowVcenterCredentialsRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -2599,6 +5734,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             ),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -2617,7 +5755,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         private_cloud: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Resets credentials of the NSX appliance.
 
@@ -2661,7 +5799,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 URIs that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``private_cloud`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -2669,22 +5807,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
                 An object representing a long-running operation.
 
-                The result type for the operation will be
-                :class:`google.cloud.vmwareengine_v1.types.PrivateCloud`
-                Represents a private cloud resource. Private clouds are
-                zonal resources.
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.PrivateCloud` Represents a private cloud resource. Private clouds of type STANDARD and
+                   TIME_LIMITED are zonal resources, STRETCHED private
+                   clouds are regional.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([private_cloud])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2692,10 +5831,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ResetNsxCredentialsRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ResetNsxCredentialsRequest):
             request = vmwareengine.ResetNsxCredentialsRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -2715,6 +5852,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             ),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -2727,7 +5867,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.PrivateCloud,
+            vmwareengine_resources.PrivateCloud,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -2743,7 +5883,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         private_cloud: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Resets credentials of the Vcenter appliance.
 
@@ -2787,7 +5927,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 URIs that follow the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1-a/privateClouds/my-cloud``
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
 
                 This corresponds to the ``private_cloud`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -2795,22 +5935,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
                 An object representing a long-running operation.
 
-                The result type for the operation will be
-                :class:`google.cloud.vmwareengine_v1.types.PrivateCloud`
-                Represents a private cloud resource. Private clouds are
-                zonal resources.
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.PrivateCloud` Represents a private cloud resource. Private clouds of type STANDARD and
+                   TIME_LIMITED are zonal resources, STRETCHED private
+                   clouds are regional.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([private_cloud])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2818,10 +5959,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ResetVcenterCredentialsRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ResetVcenterCredentialsRequest):
             request = vmwareengine.ResetVcenterCredentialsRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -2843,6 +5982,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             ),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -2855,8 +5997,1072 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.PrivateCloud,
+            vmwareengine_resources.PrivateCloud,
             metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_dns_forwarding(
+        self,
+        request: Optional[Union[vmwareengine.GetDnsForwardingRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.DnsForwarding:
+        r"""Gets details of the ``DnsForwarding`` config.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_dns_forwarding():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetDnsForwardingRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_dns_forwarding(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetDnsForwardingRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetDnsForwarding][google.cloud.vmwareengine.v1.VmwareEngine.GetDnsForwarding]
+            name (str):
+                Required. The resource name of a ``DnsForwarding`` to
+                retrieve. Resource names are schemeless URIs that follow
+                the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/dnsForwarding``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.DnsForwarding:
+                DNS forwarding config.
+                This config defines a list of domain to
+                name server mappings, and is attached to
+                the private cloud for custom domain
+                resolution.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetDnsForwardingRequest):
+            request = vmwareengine.GetDnsForwardingRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_dns_forwarding]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def update_dns_forwarding(
+        self,
+        request: Optional[Union[vmwareengine.UpdateDnsForwardingRequest, dict]] = None,
+        *,
+        dns_forwarding: Optional[vmwareengine_resources.DnsForwarding] = None,
+        update_mask: Optional[field_mask_pb2.FieldMask] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Updates the parameters of the ``DnsForwarding`` config, like
+        associated domains. Only fields specified in ``update_mask`` are
+        applied.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_update_dns_forwarding():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                dns_forwarding = vmwareengine_v1.DnsForwarding()
+                dns_forwarding.forwarding_rules.domain = "domain_value"
+                dns_forwarding.forwarding_rules.name_servers = ['name_servers_value1', 'name_servers_value2']
+
+                request = vmwareengine_v1.UpdateDnsForwardingRequest(
+                    dns_forwarding=dns_forwarding,
+                )
+
+                # Make the request
+                operation = client.update_dns_forwarding(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.UpdateDnsForwardingRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.UpdateDnsForwarding][google.cloud.vmwareengine.v1.VmwareEngine.UpdateDnsForwarding]
+            dns_forwarding (google.cloud.vmwareengine_v1.types.DnsForwarding):
+                Required. DnsForwarding config
+                details.
+
+                This corresponds to the ``dns_forwarding`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            update_mask (google.protobuf.field_mask_pb2.FieldMask):
+                Required. Field mask is used to specify the fields to be
+                overwritten in the ``DnsForwarding`` resource by the
+                update. The fields specified in the ``update_mask`` are
+                relative to the resource, not the full request. A field
+                will be overwritten if it is in the mask. If the user
+                does not provide a mask then all fields will be
+                overwritten.
+
+                This corresponds to the ``update_mask`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.DnsForwarding` DNS forwarding config.
+                   This config defines a list of domain to name server
+                   mappings, and is attached to the private cloud for
+                   custom domain resolution.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([dns_forwarding, update_mask])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.UpdateDnsForwardingRequest):
+            request = vmwareengine.UpdateDnsForwardingRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if dns_forwarding is not None:
+                request.dns_forwarding = dns_forwarding
+            if update_mask is not None:
+                request.update_mask = update_mask
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.update_dns_forwarding]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("dns_forwarding.name", request.dns_forwarding.name),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.DnsForwarding,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_network_peering(
+        self,
+        request: Optional[Union[vmwareengine.GetNetworkPeeringRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.NetworkPeering:
+        r"""Retrieves a ``NetworkPeering`` resource by its resource name.
+        The resource contains details of the network peering, such as
+        peered networks, import and export custom route configurations,
+        and peering state. NetworkPeering is a global resource and
+        location can only be global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_network_peering():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetNetworkPeeringRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_network_peering(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetNetworkPeeringRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetNetworkPeering][google.cloud.vmwareengine.v1.VmwareEngine.GetNetworkPeering]
+            name (str):
+                Required. The resource name of the network peering to
+                retrieve. Resource names are schemeless URIs that follow
+                the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/global/networkPeerings/my-peering``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.NetworkPeering:
+                Details of a network peering.
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetNetworkPeeringRequest):
+            request = vmwareengine.GetNetworkPeeringRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_network_peering]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_network_peerings(
+        self,
+        request: Optional[Union[vmwareengine.ListNetworkPeeringsRequest, dict]] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListNetworkPeeringsPager:
+        r"""Lists ``NetworkPeering`` resources in a given project.
+        NetworkPeering is a global resource and location can only be
+        global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_network_peerings():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListNetworkPeeringsRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_network_peerings(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListNetworkPeeringsRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListNetworkPeerings][google.cloud.vmwareengine.v1.VmwareEngine.ListNetworkPeerings]
+            parent (str):
+                Required. The resource name of the location (global) to
+                query for network peerings. Resource names are
+                schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example: ``projects/my-project/locations/global``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListNetworkPeeringsPager:
+                Response message for
+                   [VmwareEngine.ListNetworkPeerings][google.cloud.vmwareengine.v1.VmwareEngine.ListNetworkPeerings]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.ListNetworkPeeringsRequest):
+            request = vmwareengine.ListNetworkPeeringsRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.list_network_peerings]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListNetworkPeeringsPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def create_network_peering(
+        self,
+        request: Optional[Union[vmwareengine.CreateNetworkPeeringRequest, dict]] = None,
+        *,
+        parent: Optional[str] = None,
+        network_peering: Optional[vmwareengine_resources.NetworkPeering] = None,
+        network_peering_id: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Creates a new network peering between the peer network and
+        VMware Engine network provided in a ``NetworkPeering`` resource.
+        NetworkPeering is a global resource and location can only be
+        global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_create_network_peering():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                network_peering = vmwareengine_v1.NetworkPeering()
+                network_peering.peer_network = "peer_network_value"
+                network_peering.peer_network_type = "GOOGLE_CLOUD_NETAPP_VOLUMES"
+                network_peering.vmware_engine_network = "vmware_engine_network_value"
+
+                request = vmwareengine_v1.CreateNetworkPeeringRequest(
+                    parent="parent_value",
+                    network_peering_id="network_peering_id_value",
+                    network_peering=network_peering,
+                )
+
+                # Make the request
+                operation = client.create_network_peering(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.CreateNetworkPeeringRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.CreateNetworkPeering][google.cloud.vmwareengine.v1.VmwareEngine.CreateNetworkPeering]
+            parent (str):
+                Required. The resource name of the location to create
+                the new network peering in. This value is always
+                ``global``, because ``NetworkPeering`` is a global
+                resource. Resource names are schemeless URIs that follow
+                the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example: ``projects/my-project/locations/global``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            network_peering (google.cloud.vmwareengine_v1.types.NetworkPeering):
+                Required. The initial description of
+                the new network peering.
+
+                This corresponds to the ``network_peering`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            network_peering_id (str):
+                Required. The user-provided identifier of the new
+                ``NetworkPeering``. This identifier must be unique among
+                ``NetworkPeering`` resources within the parent and
+                becomes the final token in the name URI. The identifier
+                must meet the following requirements:
+
+                -  Only contains 1-63 alphanumeric characters and
+                   hyphens
+                -  Begins with an alphabetical character
+                -  Ends with a non-hyphen character
+                -  Not formatted as a UUID
+                -  Complies with `RFC
+                   1034 <https://datatracker.ietf.org/doc/html/rfc1034>`__
+                   (section 3.5)
+
+                This corresponds to the ``network_peering_id`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be
+                :class:`google.cloud.vmwareengine_v1.types.NetworkPeering`
+                Details of a network peering.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent, network_peering, network_peering_id])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.CreateNetworkPeeringRequest):
+            request = vmwareengine.CreateNetworkPeeringRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+            if network_peering is not None:
+                request.network_peering = network_peering
+            if network_peering_id is not None:
+                request.network_peering_id = network_peering_id
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.create_network_peering]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.NetworkPeering,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def delete_network_peering(
+        self,
+        request: Optional[Union[vmwareengine.DeleteNetworkPeeringRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Deletes a ``NetworkPeering`` resource. When a network peering is
+        deleted for a VMware Engine network, the peer network becomes
+        inaccessible to that VMware Engine network. NetworkPeering is a
+        global resource and location can only be global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_delete_network_peering():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.DeleteNetworkPeeringRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                operation = client.delete_network_peering(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.DeleteNetworkPeeringRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.DeleteNetworkPeering][google.cloud.vmwareengine.v1.VmwareEngine.DeleteNetworkPeering]
+            name (str):
+                Required. The resource name of the network peering to be
+                deleted. Resource names are schemeless URIs that follow
+                the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/global/networkPeerings/my-peering``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.protobuf.empty_pb2.Empty` A generic empty message that you can re-use to avoid defining duplicated
+                   empty messages in your APIs. A typical example is to
+                   use it as the request or the response type of an API
+                   method. For instance:
+
+                      service Foo {
+                         rpc Bar(google.protobuf.Empty) returns
+                         (google.protobuf.Empty);
+
+                      }
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.DeleteNetworkPeeringRequest):
+            request = vmwareengine.DeleteNetworkPeeringRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.delete_network_peering]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            empty_pb2.Empty,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def update_network_peering(
+        self,
+        request: Optional[Union[vmwareengine.UpdateNetworkPeeringRequest, dict]] = None,
+        *,
+        network_peering: Optional[vmwareengine_resources.NetworkPeering] = None,
+        update_mask: Optional[field_mask_pb2.FieldMask] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Modifies a ``NetworkPeering`` resource. Only the ``description``
+        field can be updated. Only fields specified in ``updateMask``
+        are applied. NetworkPeering is a global resource and location
+        can only be global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_update_network_peering():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                network_peering = vmwareengine_v1.NetworkPeering()
+                network_peering.peer_network = "peer_network_value"
+                network_peering.peer_network_type = "GOOGLE_CLOUD_NETAPP_VOLUMES"
+                network_peering.vmware_engine_network = "vmware_engine_network_value"
+
+                request = vmwareengine_v1.UpdateNetworkPeeringRequest(
+                    network_peering=network_peering,
+                )
+
+                # Make the request
+                operation = client.update_network_peering(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.UpdateNetworkPeeringRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.UpdateNetworkPeering][google.cloud.vmwareengine.v1.VmwareEngine.UpdateNetworkPeering]
+            network_peering (google.cloud.vmwareengine_v1.types.NetworkPeering):
+                Required. Network peering
+                description.
+
+                This corresponds to the ``network_peering`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            update_mask (google.protobuf.field_mask_pb2.FieldMask):
+                Required. Field mask is used to specify the fields to be
+                overwritten in the ``NetworkPeering`` resource by the
+                update. The fields specified in the ``update_mask`` are
+                relative to the resource, not the full request. A field
+                will be overwritten if it is in the mask. If the user
+                does not provide a mask then all fields will be
+                overwritten.
+
+                This corresponds to the ``update_mask`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be
+                :class:`google.cloud.vmwareengine_v1.types.NetworkPeering`
+                Details of a network peering.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([network_peering, update_mask])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.UpdateNetworkPeeringRequest):
+            request = vmwareengine.UpdateNetworkPeeringRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if network_peering is not None:
+                request.network_peering = network_peering
+            if update_mask is not None:
+                request.update_mask = update_mask
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.update_network_peering]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("network_peering.name", request.network_peering.name),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.NetworkPeering,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_peering_routes(
+        self,
+        request: Optional[Union[vmwareengine.ListPeeringRoutesRequest, dict]] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListPeeringRoutesPager:
+        r"""Lists the network peering routes exchanged over a
+        peering connection. NetworkPeering is a global resource
+        and location can only be global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_peering_routes():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListPeeringRoutesRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_peering_routes(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListPeeringRoutesRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListPeeringRoutes][google.cloud.vmwareengine.v1.VmwareEngine.ListPeeringRoutes]
+            parent (str):
+                Required. The resource name of the network peering to
+                retrieve peering routes from. Resource names are
+                schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/global/networkPeerings/my-peering``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListPeeringRoutesPager:
+                Response message for
+                   [VmwareEngine.ListPeeringRoutes][google.cloud.vmwareengine.v1.VmwareEngine.ListPeeringRoutes]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.ListPeeringRoutesRequest):
+            request = vmwareengine.ListPeeringRoutesRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.list_peering_routes]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListPeeringRoutesPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
         # Done; return the response.
@@ -2869,11 +7075,11 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         ] = None,
         *,
         parent: Optional[str] = None,
-        hcx_activation_key: Optional[vmwareengine.HcxActivationKey] = None,
+        hcx_activation_key: Optional[vmwareengine_resources.HcxActivationKey] = None,
         hcx_activation_key_id: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Creates a new HCX activation key in a given private
         cloud.
@@ -2955,8 +7161,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -2973,8 +7181,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent, hcx_activation_key, hcx_activation_key_id])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -2982,10 +7190,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.CreateHcxActivationKeyRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.CreateHcxActivationKeyRequest):
             request = vmwareengine.CreateHcxActivationKeyRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -3009,6 +7215,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -3021,7 +7230,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.HcxActivationKey,
+            vmwareengine_resources.HcxActivationKey,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -3037,7 +7246,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         parent: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> pagers.ListHcxActivationKeysPager:
         r"""Lists ``HcxActivationKey`` resources in a given private cloud.
 
@@ -3086,21 +7295,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListHcxActivationKeysPager:
                 Response message for
-                [VmwareEngine.ListHcxActivationKeys][google.cloud.vmwareengine.v1.VmwareEngine.ListHcxActivationKeys]
+                   [VmwareEngine.ListHcxActivationKeys][google.cloud.vmwareengine.v1.VmwareEngine.ListHcxActivationKeys]
 
                 Iterating over this object will yield results and
                 resolve additional pages automatically.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -3108,10 +7319,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ListHcxActivationKeysRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ListHcxActivationKeysRequest):
             request = vmwareengine.ListHcxActivationKeysRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -3129,6 +7338,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -3143,6 +7355,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             method=rpc,
             request=request,
             response=response,
+            retry=retry,
+            timeout=timeout,
             metadata=metadata,
         )
 
@@ -3156,8 +7370,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> vmwareengine.HcxActivationKey:
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.HcxActivationKey:
         r"""Retrieves a ``HcxActivationKey`` resource by its resource name.
 
         .. code-block:: python
@@ -3196,7 +7410,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 the conventions in
                 https://cloud.google.com/apis/design/resource_names. For
                 example:
-                ``projects/my-project/locations/us-west1/privateClouds/my-cloud/hcxActivationKeys/my-key``
+                ``projects/my-project/locations/us-central1/privateClouds/my-cloud/hcxActivationKeys/my-key``
 
                 This corresponds to the ``name`` field
                 on the ``request`` instance; if ``request`` is provided, this
@@ -3204,8 +7418,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.types.HcxActivationKey:
@@ -3220,8 +7436,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -3229,10 +7445,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.GetHcxActivationKeyRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.GetHcxActivationKeyRequest):
             request = vmwareengine.GetHcxActivationKeyRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -3249,6 +7463,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -3268,8 +7485,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> vmwareengine.NetworkPolicy:
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.NetworkPolicy:
         r"""Retrieves a ``NetworkPolicy`` resource by its resource name.
 
         .. code-block:: python
@@ -3316,8 +7533,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.types.NetworkPolicy:
@@ -3335,8 +7554,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -3344,10 +7563,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.GetNetworkPolicyRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.GetNetworkPolicyRequest):
             request = vmwareengine.GetNetworkPolicyRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -3364,6 +7581,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -3383,7 +7603,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         parent: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> pagers.ListNetworkPoliciesPager:
         r"""Lists ``NetworkPolicy`` resources in a specified project and
         location.
@@ -3432,21 +7652,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListNetworkPoliciesPager:
                 Response message for
-                [VmwareEngine.ListNetworkPolicies][google.cloud.vmwareengine.v1.VmwareEngine.ListNetworkPolicies]
+                   [VmwareEngine.ListNetworkPolicies][google.cloud.vmwareengine.v1.VmwareEngine.ListNetworkPolicies]
 
                 Iterating over this object will yield results and
                 resolve additional pages automatically.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -3454,10 +7676,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ListNetworkPoliciesRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ListNetworkPoliciesRequest):
             request = vmwareengine.ListNetworkPoliciesRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -3475,6 +7695,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -3489,6 +7712,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             method=rpc,
             request=request,
             response=response,
+            retry=retry,
+            timeout=timeout,
             metadata=metadata,
         )
 
@@ -3500,11 +7725,11 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         request: Optional[Union[vmwareengine.CreateNetworkPolicyRequest, dict]] = None,
         *,
         parent: Optional[str] = None,
-        network_policy: Optional[vmwareengine.NetworkPolicy] = None,
+        network_policy: Optional[vmwareengine_resources.NetworkPolicy] = None,
         network_policy_id: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Creates a new network policy in a given VMware Engine
         network of a project and location (region). A new
@@ -3590,8 +7815,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -3608,8 +7835,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent, network_policy, network_policy_id])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -3617,10 +7844,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.CreateNetworkPolicyRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.CreateNetworkPolicyRequest):
             request = vmwareengine.CreateNetworkPolicyRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -3642,6 +7867,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -3654,7 +7882,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.NetworkPolicy,
+            vmwareengine_resources.NetworkPolicy,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -3665,11 +7893,11 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         self,
         request: Optional[Union[vmwareengine.UpdateNetworkPolicyRequest, dict]] = None,
         *,
-        network_policy: Optional[vmwareengine.NetworkPolicy] = None,
+        network_policy: Optional[vmwareengine_resources.NetworkPolicy] = None,
         update_mask: Optional[field_mask_pb2.FieldMask] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Modifies a ``NetworkPolicy`` resource. Only the following fields
         can be updated: ``internet_access``, ``external_ip``,
@@ -3742,8 +7970,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -3760,8 +7990,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([network_policy, update_mask])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -3769,10 +7999,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.UpdateNetworkPolicyRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.UpdateNetworkPolicyRequest):
             request = vmwareengine.UpdateNetworkPolicyRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -3794,6 +8022,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             ),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -3806,7 +8037,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.NetworkPolicy,
+            vmwareengine_resources.NetworkPolicy,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -3820,7 +8051,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Deletes a ``NetworkPolicy`` resource. A network policy cannot be
         deleted when ``NetworkService.state`` is set to ``RECONCILING``
@@ -3874,8 +8105,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -3894,8 +8127,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -3903,10 +8136,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.DeleteNetworkPolicyRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.DeleteNetworkPolicyRequest):
             request = vmwareengine.DeleteNetworkPolicyRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -3923,6 +8154,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -3943,6 +8177,864 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         # Done; return the response.
         return response
 
+    def list_management_dns_zone_bindings(
+        self,
+        request: Optional[
+            Union[vmwareengine.ListManagementDnsZoneBindingsRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListManagementDnsZoneBindingsPager:
+        r"""Lists Consumer VPCs bound to Management DNS Zone of a
+        given private cloud.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_management_dns_zone_bindings():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListManagementDnsZoneBindingsRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_management_dns_zone_bindings(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListManagementDnsZoneBindingsRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListManagementDnsZoneBindings][google.cloud.vmwareengine.v1.VmwareEngine.ListManagementDnsZoneBindings]
+            parent (str):
+                Required. The resource name of the private cloud to be
+                queried for management DNS zone bindings. Resource names
+                are schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListManagementDnsZoneBindingsPager:
+                Response message for
+                   [VmwareEngine.ListManagementDnsZoneBindings][google.cloud.vmwareengine.v1.VmwareEngine.ListManagementDnsZoneBindings]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.ListManagementDnsZoneBindingsRequest):
+            request = vmwareengine.ListManagementDnsZoneBindingsRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.list_management_dns_zone_bindings
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListManagementDnsZoneBindingsPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_management_dns_zone_binding(
+        self,
+        request: Optional[
+            Union[vmwareengine.GetManagementDnsZoneBindingRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.ManagementDnsZoneBinding:
+        r"""Retrieves a 'ManagementDnsZoneBinding' resource by
+        its resource name.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_management_dns_zone_binding():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetManagementDnsZoneBindingRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_management_dns_zone_binding(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetManagementDnsZoneBindingRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetManagementDnsZoneBinding][google.cloud.vmwareengine.v1.VmwareEngine.GetManagementDnsZoneBinding]
+            name (str):
+                Required. The resource name of the management DNS zone
+                binding to retrieve. Resource names are schemeless URIs
+                that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/managementDnsZoneBindings/my-management-dns-zone-binding``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.ManagementDnsZoneBinding:
+                Represents a binding between a
+                network and the management DNS zone. A
+                management DNS zone is the Cloud DNS
+                cross-project binding zone that VMware
+                Engine creates for each private cloud.
+                It contains FQDNs and corresponding IP
+                addresses for the private cloud's ESXi
+                hosts and management VM appliances like
+                vCenter and NSX Manager.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetManagementDnsZoneBindingRequest):
+            request = vmwareengine.GetManagementDnsZoneBindingRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.get_management_dns_zone_binding
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def create_management_dns_zone_binding(
+        self,
+        request: Optional[
+            Union[vmwareengine.CreateManagementDnsZoneBindingRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        management_dns_zone_binding: Optional[
+            vmwareengine_resources.ManagementDnsZoneBinding
+        ] = None,
+        management_dns_zone_binding_id: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Creates a new ``ManagementDnsZoneBinding`` resource in a private
+        cloud. This RPC creates the DNS binding and the resource that
+        represents the DNS binding of the consumer VPC network to the
+        management DNS zone. A management DNS zone is the Cloud DNS
+        cross-project binding zone that VMware Engine creates for each
+        private cloud. It contains FQDNs and corresponding IP addresses
+        for the private cloud's ESXi hosts and management VM appliances
+        like vCenter and NSX Manager.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_create_management_dns_zone_binding():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                management_dns_zone_binding = vmwareengine_v1.ManagementDnsZoneBinding()
+                management_dns_zone_binding.vpc_network = "vpc_network_value"
+
+                request = vmwareengine_v1.CreateManagementDnsZoneBindingRequest(
+                    parent="parent_value",
+                    management_dns_zone_binding=management_dns_zone_binding,
+                    management_dns_zone_binding_id="management_dns_zone_binding_id_value",
+                )
+
+                # Make the request
+                operation = client.create_management_dns_zone_binding(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.CreateManagementDnsZoneBindingRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.CreateManagementDnsZoneBindings][]
+            parent (str):
+                Required. The resource name of the private cloud to
+                create a new management DNS zone binding for. Resource
+                names are schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            management_dns_zone_binding (google.cloud.vmwareengine_v1.types.ManagementDnsZoneBinding):
+                Required. The initial values for a
+                new management DNS zone binding.
+
+                This corresponds to the ``management_dns_zone_binding`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            management_dns_zone_binding_id (str):
+                Required. The user-provided identifier of the
+                ``ManagementDnsZoneBinding`` resource to be created.
+                This identifier must be unique among
+                ``ManagementDnsZoneBinding`` resources within the parent
+                and becomes the final token in the name URI. The
+                identifier must meet the following requirements:
+
+                -  Only contains 1-63 alphanumeric characters and
+                   hyphens
+                -  Begins with an alphabetical character
+                -  Ends with a non-hyphen character
+                -  Not formatted as a UUID
+                -  Complies with `RFC
+                   1034 <https://datatracker.ietf.org/doc/html/rfc1034>`__
+                   (section 3.5)
+
+                This corresponds to the ``management_dns_zone_binding_id`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.ManagementDnsZoneBinding` Represents a binding between a network and the management DNS zone.
+                   A management DNS zone is the Cloud DNS cross-project
+                   binding zone that VMware Engine creates for each
+                   private cloud. It contains FQDNs and corresponding IP
+                   addresses for the private cloud's ESXi hosts and
+                   management VM appliances like vCenter and NSX
+                   Manager.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any(
+            [parent, management_dns_zone_binding, management_dns_zone_binding_id]
+        )
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.CreateManagementDnsZoneBindingRequest):
+            request = vmwareengine.CreateManagementDnsZoneBindingRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+            if management_dns_zone_binding is not None:
+                request.management_dns_zone_binding = management_dns_zone_binding
+            if management_dns_zone_binding_id is not None:
+                request.management_dns_zone_binding_id = management_dns_zone_binding_id
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.create_management_dns_zone_binding
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.ManagementDnsZoneBinding,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def update_management_dns_zone_binding(
+        self,
+        request: Optional[
+            Union[vmwareengine.UpdateManagementDnsZoneBindingRequest, dict]
+        ] = None,
+        *,
+        management_dns_zone_binding: Optional[
+            vmwareengine_resources.ManagementDnsZoneBinding
+        ] = None,
+        update_mask: Optional[field_mask_pb2.FieldMask] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Updates a ``ManagementDnsZoneBinding`` resource. Only fields
+        specified in ``update_mask`` are applied.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_update_management_dns_zone_binding():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                management_dns_zone_binding = vmwareengine_v1.ManagementDnsZoneBinding()
+                management_dns_zone_binding.vpc_network = "vpc_network_value"
+
+                request = vmwareengine_v1.UpdateManagementDnsZoneBindingRequest(
+                    management_dns_zone_binding=management_dns_zone_binding,
+                )
+
+                # Make the request
+                operation = client.update_management_dns_zone_binding(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.UpdateManagementDnsZoneBindingRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.UpdateManagementDnsZoneBinding][google.cloud.vmwareengine.v1.VmwareEngine.UpdateManagementDnsZoneBinding]
+            management_dns_zone_binding (google.cloud.vmwareengine_v1.types.ManagementDnsZoneBinding):
+                Required. New values to update the
+                management DNS zone binding with.
+
+                This corresponds to the ``management_dns_zone_binding`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            update_mask (google.protobuf.field_mask_pb2.FieldMask):
+                Required. Field mask is used to specify the fields to be
+                overwritten in the ``ManagementDnsZoneBinding`` resource
+                by the update. The fields specified in the
+                ``update_mask`` are relative to the resource, not the
+                full request. A field will be overwritten if it is in
+                the mask. If the user does not provide a mask then all
+                fields will be overwritten.
+
+                This corresponds to the ``update_mask`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.ManagementDnsZoneBinding` Represents a binding between a network and the management DNS zone.
+                   A management DNS zone is the Cloud DNS cross-project
+                   binding zone that VMware Engine creates for each
+                   private cloud. It contains FQDNs and corresponding IP
+                   addresses for the private cloud's ESXi hosts and
+                   management VM appliances like vCenter and NSX
+                   Manager.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([management_dns_zone_binding, update_mask])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.UpdateManagementDnsZoneBindingRequest):
+            request = vmwareengine.UpdateManagementDnsZoneBindingRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if management_dns_zone_binding is not None:
+                request.management_dns_zone_binding = management_dns_zone_binding
+            if update_mask is not None:
+                request.update_mask = update_mask
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.update_management_dns_zone_binding
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (
+                    (
+                        "management_dns_zone_binding.name",
+                        request.management_dns_zone_binding.name,
+                    ),
+                )
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.ManagementDnsZoneBinding,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def delete_management_dns_zone_binding(
+        self,
+        request: Optional[
+            Union[vmwareengine.DeleteManagementDnsZoneBindingRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Deletes a ``ManagementDnsZoneBinding`` resource. When a
+        management DNS zone binding is deleted, the corresponding
+        consumer VPC network is no longer bound to the management DNS
+        zone.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_delete_management_dns_zone_binding():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.DeleteManagementDnsZoneBindingRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                operation = client.delete_management_dns_zone_binding(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.DeleteManagementDnsZoneBindingRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.DeleteManagementDnsZoneBinding][google.cloud.vmwareengine.v1.VmwareEngine.DeleteManagementDnsZoneBinding]
+            name (str):
+                Required. The resource name of the management DNS zone
+                binding to delete. Resource names are schemeless URIs
+                that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/managementDnsZoneBindings/my-management-dns-zone-binding``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.protobuf.empty_pb2.Empty` A generic empty message that you can re-use to avoid defining duplicated
+                   empty messages in your APIs. A typical example is to
+                   use it as the request or the response type of an API
+                   method. For instance:
+
+                      service Foo {
+                         rpc Bar(google.protobuf.Empty) returns
+                         (google.protobuf.Empty);
+
+                      }
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.DeleteManagementDnsZoneBindingRequest):
+            request = vmwareengine.DeleteManagementDnsZoneBindingRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.delete_management_dns_zone_binding
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            empty_pb2.Empty,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def repair_management_dns_zone_binding(
+        self,
+        request: Optional[
+            Union[vmwareengine.RepairManagementDnsZoneBindingRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Retries to create a ``ManagementDnsZoneBinding`` resource that
+        is in failed state.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_repair_management_dns_zone_binding():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.RepairManagementDnsZoneBindingRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                operation = client.repair_management_dns_zone_binding(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.RepairManagementDnsZoneBindingRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.RepairManagementDnsZoneBindings][]
+            name (str):
+                Required. The resource name of the management DNS zone
+                binding to repair. Resource names are schemeless URIs
+                that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1-a/privateClouds/my-cloud/managementDnsZoneBindings/my-management-dns-zone-binding``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.ManagementDnsZoneBinding` Represents a binding between a network and the management DNS zone.
+                   A management DNS zone is the Cloud DNS cross-project
+                   binding zone that VMware Engine creates for each
+                   private cloud. It contains FQDNs and corresponding IP
+                   addresses for the private cloud's ESXi hosts and
+                   management VM appliances like vCenter and NSX
+                   Manager.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.RepairManagementDnsZoneBindingRequest):
+            request = vmwareengine.RepairManagementDnsZoneBindingRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.repair_management_dns_zone_binding
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.ManagementDnsZoneBinding,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
     def create_vmware_engine_network(
         self,
         request: Optional[
@@ -3950,11 +9042,13 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         ] = None,
         *,
         parent: Optional[str] = None,
-        vmware_engine_network: Optional[vmwareengine.VmwareEngineNetwork] = None,
+        vmware_engine_network: Optional[
+            vmwareengine_resources.VmwareEngineNetwork
+        ] = None,
         vmware_engine_network_id: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Creates a new VMware Engine network that can be used
         by a private cloud.
@@ -3976,7 +9070,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
                 # Initialize request argument(s)
                 vmware_engine_network = vmwareengine_v1.VmwareEngineNetwork()
-                vmware_engine_network.type_ = "LEGACY"
+                vmware_engine_network.type_ = "STANDARD"
 
                 request = vmwareengine_v1.CreateVmwareEngineNetworkRequest(
                     parent="parent_value",
@@ -4028,7 +9122,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 -  For networks of type LEGACY, adheres to the format:
                    ``{region-id}-default``. Replace ``{region-id}`` with
                    the region where you want to create the VMware Engine
-                   network. For example, "us-west1-default".
+                   network. For example, "us-central1-default".
                 -  Only contains 1-63 alphanumeric characters and
                    hyphens
                 -  Begins with an alphabetical character
@@ -4044,8 +9138,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -4056,8 +9152,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any(
             [parent, vmware_engine_network, vmware_engine_network_id]
         )
@@ -4067,10 +9163,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.CreateVmwareEngineNetworkRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.CreateVmwareEngineNetworkRequest):
             request = vmwareengine.CreateVmwareEngineNetworkRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -4094,6 +9188,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -4106,7 +9203,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.VmwareEngineNetwork,
+            vmwareengine_resources.VmwareEngineNetwork,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -4119,11 +9216,13 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             Union[vmwareengine.UpdateVmwareEngineNetworkRequest, dict]
         ] = None,
         *,
-        vmware_engine_network: Optional[vmwareengine.VmwareEngineNetwork] = None,
+        vmware_engine_network: Optional[
+            vmwareengine_resources.VmwareEngineNetwork
+        ] = None,
         update_mask: Optional[field_mask_pb2.FieldMask] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Modifies a VMware Engine network resource. Only the following
         fields can be updated: ``description``. Only fields specified in
@@ -4146,7 +9245,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
                 # Initialize request argument(s)
                 vmware_engine_network = vmwareengine_v1.VmwareEngineNetwork()
-                vmware_engine_network.type_ = "LEGACY"
+                vmware_engine_network.type_ = "STANDARD"
 
                 request = vmwareengine_v1.UpdateVmwareEngineNetworkRequest(
                     vmware_engine_network=vmware_engine_network,
@@ -4189,8 +9288,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -4201,8 +9302,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([vmware_engine_network, update_mask])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -4210,10 +9311,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.UpdateVmwareEngineNetworkRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.UpdateVmwareEngineNetworkRequest):
             request = vmwareengine.UpdateVmwareEngineNetworkRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -4237,6 +9336,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             ),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -4249,7 +9351,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         response = operation.from_gapic(
             response,
             self._transport.operations_client,
-            vmwareengine.VmwareEngineNetwork,
+            vmwareengine_resources.VmwareEngineNetwork,
             metadata_type=vmwareengine.OperationMetadata,
         )
 
@@ -4265,7 +9367,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
         r"""Deletes a ``VmwareEngineNetwork`` resource. You can only delete
         a VMware Engine network after all resources that refer to it are
@@ -4320,8 +9422,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.api_core.operation.Operation:
@@ -4340,8 +9444,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -4349,10 +9453,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.DeleteVmwareEngineNetworkRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.DeleteVmwareEngineNetworkRequest):
             request = vmwareengine.DeleteVmwareEngineNetworkRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -4371,6 +9473,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -4400,8 +9505,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         name: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
-    ) -> vmwareengine.VmwareEngineNetwork:
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.VmwareEngineNetwork:
         r"""Retrieves a ``VmwareEngineNetwork`` resource by its resource
         name. The resource contains details of the VMware Engine
         network, such as its VMware Engine network type, peered networks
@@ -4452,8 +9557,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.types.VmwareEngineNetwork:
@@ -4463,8 +9570,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([name])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -4472,10 +9579,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.GetVmwareEngineNetworkRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.GetVmwareEngineNetworkRequest):
             request = vmwareengine.GetVmwareEngineNetworkRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -4494,6 +9599,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -4515,7 +9623,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         parent: Optional[str] = None,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> pagers.ListVmwareEngineNetworksPager:
         r"""Lists ``VmwareEngineNetwork`` resources in a given project and
         location.
@@ -4564,21 +9672,23 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListVmwareEngineNetworksPager:
                 Response message for
-                [VmwareEngine.ListVmwareEngineNetworks][google.cloud.vmwareengine.v1.VmwareEngine.ListVmwareEngineNetworks]
+                   [VmwareEngine.ListVmwareEngineNetworks][google.cloud.vmwareengine.v1.VmwareEngine.ListVmwareEngineNetworks]
 
                 Iterating over this object will yield results and
                 resolve additional pages automatically.
 
         """
         # Create or coerce a protobuf request object.
-        # Quick check: If we got a request object, we should *not* have
-        # gotten any keyword arguments that map to the request.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
         has_flattened_params = any([parent])
         if request is not None and has_flattened_params:
             raise ValueError(
@@ -4586,10 +9696,8 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
                 "the individual field arguments should be set."
             )
 
-        # Minor optimization to avoid making a copy if the user passes
-        # in a vmwareengine.ListVmwareEngineNetworksRequest.
-        # There's no risk of modifying the input as we've already verified
-        # there are no flattened fields.
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
         if not isinstance(request, vmwareengine.ListVmwareEngineNetworksRequest):
             request = vmwareengine.ListVmwareEngineNetworksRequest(request)
             # If we have keyword arguments corresponding to fields on the
@@ -4609,6 +9717,9 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
         )
 
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
         # Send the request.
         response = rpc(
             request,
@@ -4623,13 +9734,1254 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             method=rpc,
             request=request,
             response=response,
+            retry=retry,
+            timeout=timeout,
             metadata=metadata,
         )
 
         # Done; return the response.
         return response
 
-    def __enter__(self):
+    def create_private_connection(
+        self,
+        request: Optional[
+            Union[vmwareengine.CreatePrivateConnectionRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        private_connection: Optional[vmwareengine_resources.PrivateConnection] = None,
+        private_connection_id: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Creates a new private connection that can be used for
+        accessing private Clouds.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_create_private_connection():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                private_connection = vmwareengine_v1.PrivateConnection()
+                private_connection.vmware_engine_network = "vmware_engine_network_value"
+                private_connection.type_ = "THIRD_PARTY_SERVICE"
+                private_connection.service_network = "service_network_value"
+
+                request = vmwareengine_v1.CreatePrivateConnectionRequest(
+                    parent="parent_value",
+                    private_connection_id="private_connection_id_value",
+                    private_connection=private_connection,
+                )
+
+                # Make the request
+                operation = client.create_private_connection(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.CreatePrivateConnectionRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.CreatePrivateConnection][google.cloud.vmwareengine.v1.VmwareEngine.CreatePrivateConnection]
+            parent (str):
+                Required. The resource name of the location to create
+                the new private connection in. Private connection is a
+                regional resource. Resource names are schemeless URIs
+                that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example: ``projects/my-project/locations/us-central1``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            private_connection (google.cloud.vmwareengine_v1.types.PrivateConnection):
+                Required. The initial description of
+                the new private connection.
+
+                This corresponds to the ``private_connection`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            private_connection_id (str):
+                Required. The user-provided identifier of the new
+                private connection. This identifier must be unique among
+                private connection resources within the parent and
+                becomes the final token in the name URI. The identifier
+                must meet the following requirements:
+
+                -  Only contains 1-63 alphanumeric characters and
+                   hyphens
+                -  Begins with an alphabetical character
+                -  Ends with a non-hyphen character
+                -  Not formatted as a UUID
+                -  Complies with `RFC
+                   1034 <https://datatracker.ietf.org/doc/html/rfc1034>`__
+                   (section 3.5)
+
+                This corresponds to the ``private_connection_id`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.PrivateConnection` Private connection resource that provides connectivity for VMware Engine
+                   private clouds.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent, private_connection, private_connection_id])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.CreatePrivateConnectionRequest):
+            request = vmwareengine.CreatePrivateConnectionRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+            if private_connection is not None:
+                request.private_connection = private_connection
+            if private_connection_id is not None:
+                request.private_connection_id = private_connection_id
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.create_private_connection
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.PrivateConnection,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_private_connection(
+        self,
+        request: Optional[Union[vmwareengine.GetPrivateConnectionRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.PrivateConnection:
+        r"""Retrieves a ``PrivateConnection`` resource by its resource name.
+        The resource contains details of the private connection, such as
+        connected network, routing mode and state.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_private_connection():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetPrivateConnectionRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_private_connection(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetPrivateConnectionRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetPrivateConnection][google.cloud.vmwareengine.v1.VmwareEngine.GetPrivateConnection]
+            name (str):
+                Required. The resource name of the private connection to
+                retrieve. Resource names are schemeless URIs that follow
+                the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1/privateConnections/my-connection``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.PrivateConnection:
+                Private connection resource that
+                provides connectivity for VMware Engine
+                private clouds.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetPrivateConnectionRequest):
+            request = vmwareengine.GetPrivateConnectionRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_private_connection]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_private_connections(
+        self,
+        request: Optional[
+            Union[vmwareengine.ListPrivateConnectionsRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListPrivateConnectionsPager:
+        r"""Lists ``PrivateConnection`` resources in a given project and
+        location.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_private_connections():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListPrivateConnectionsRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_private_connections(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListPrivateConnectionsRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListPrivateConnections][google.cloud.vmwareengine.v1.VmwareEngine.ListPrivateConnections]
+            parent (str):
+                Required. The resource name of the location to query for
+                private connections. Resource names are schemeless URIs
+                that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example: ``projects/my-project/locations/us-central1``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListPrivateConnectionsPager:
+                Response message for
+                   [VmwareEngine.ListPrivateConnections][google.cloud.vmwareengine.v1.VmwareEngine.ListPrivateConnections]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.ListPrivateConnectionsRequest):
+            request = vmwareengine.ListPrivateConnectionsRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.list_private_connections]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListPrivateConnectionsPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def update_private_connection(
+        self,
+        request: Optional[
+            Union[vmwareengine.UpdatePrivateConnectionRequest, dict]
+        ] = None,
+        *,
+        private_connection: Optional[vmwareengine_resources.PrivateConnection] = None,
+        update_mask: Optional[field_mask_pb2.FieldMask] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Modifies a ``PrivateConnection`` resource. Only ``description``
+        and ``routing_mode`` fields can be updated. Only fields
+        specified in ``updateMask`` are applied.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_update_private_connection():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                private_connection = vmwareengine_v1.PrivateConnection()
+                private_connection.vmware_engine_network = "vmware_engine_network_value"
+                private_connection.type_ = "THIRD_PARTY_SERVICE"
+                private_connection.service_network = "service_network_value"
+
+                request = vmwareengine_v1.UpdatePrivateConnectionRequest(
+                    private_connection=private_connection,
+                )
+
+                # Make the request
+                operation = client.update_private_connection(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.UpdatePrivateConnectionRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.UpdatePrivateConnection][google.cloud.vmwareengine.v1.VmwareEngine.UpdatePrivateConnection]
+            private_connection (google.cloud.vmwareengine_v1.types.PrivateConnection):
+                Required. Private connection
+                description.
+
+                This corresponds to the ``private_connection`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            update_mask (google.protobuf.field_mask_pb2.FieldMask):
+                Required. Field mask is used to specify the fields to be
+                overwritten in the ``PrivateConnection`` resource by the
+                update. The fields specified in the ``update_mask`` are
+                relative to the resource, not the full request. A field
+                will be overwritten if it is in the mask. If the user
+                does not provide a mask then all fields will be
+                overwritten.
+
+                This corresponds to the ``update_mask`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.PrivateConnection` Private connection resource that provides connectivity for VMware Engine
+                   private clouds.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([private_connection, update_mask])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.UpdatePrivateConnectionRequest):
+            request = vmwareengine.UpdatePrivateConnectionRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if private_connection is not None:
+                request.private_connection = private_connection
+            if update_mask is not None:
+                request.update_mask = update_mask
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.update_private_connection
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("private_connection.name", request.private_connection.name),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.PrivateConnection,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def delete_private_connection(
+        self,
+        request: Optional[
+            Union[vmwareengine.DeletePrivateConnectionRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Deletes a ``PrivateConnection`` resource. When a private
+        connection is deleted for a VMware Engine network, the connected
+        network becomes inaccessible to that VMware Engine network.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_delete_private_connection():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.DeletePrivateConnectionRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                operation = client.delete_private_connection(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.DeletePrivateConnectionRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.DeletePrivateConnection][google.cloud.vmwareengine.v1.VmwareEngine.DeletePrivateConnection]
+            name (str):
+                Required. The resource name of the private connection to
+                be deleted. Resource names are schemeless URIs that
+                follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-central1/privateConnections/my-connection``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.protobuf.empty_pb2.Empty` A generic empty message that you can re-use to avoid defining duplicated
+                   empty messages in your APIs. A typical example is to
+                   use it as the request or the response type of an API
+                   method. For instance:
+
+                      service Foo {
+                         rpc Bar(google.protobuf.Empty) returns
+                         (google.protobuf.Empty);
+
+                      }
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.DeletePrivateConnectionRequest):
+            request = vmwareengine.DeletePrivateConnectionRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.delete_private_connection
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            empty_pb2.Empty,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_private_connection_peering_routes(
+        self,
+        request: Optional[
+            Union[vmwareengine.ListPrivateConnectionPeeringRoutesRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListPrivateConnectionPeeringRoutesPager:
+        r"""Lists the private connection routes exchanged over a
+        peering connection.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_list_private_connection_peering_routes():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.ListPrivateConnectionPeeringRoutesRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_private_connection_peering_routes(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.ListPrivateConnectionPeeringRoutesRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.ListPrivateConnectionPeeringRoutes][google.cloud.vmwareengine.v1.VmwareEngine.ListPrivateConnectionPeeringRoutes]
+            parent (str):
+                Required. The resource name of the private connection to
+                retrieve peering routes from. Resource names are
+                schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/us-west1/privateConnections/my-connection``
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.services.vmware_engine.pagers.ListPrivateConnectionPeeringRoutesPager:
+                Response message for
+                   [VmwareEngine.ListPrivateConnectionPeeringRoutes][google.cloud.vmwareengine.v1.VmwareEngine.ListPrivateConnectionPeeringRoutes]
+
+                Iterating over this object will yield results and
+                resolve additional pages automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([parent])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(
+            request, vmwareengine.ListPrivateConnectionPeeringRoutesRequest
+        ):
+            request = vmwareengine.ListPrivateConnectionPeeringRoutesRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.list_private_connection_peering_routes
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListPrivateConnectionPeeringRoutesPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def grant_dns_bind_permission(
+        self,
+        request: Optional[
+            Union[vmwareengine.GrantDnsBindPermissionRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        principal: Optional[vmwareengine_resources.Principal] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Grants the bind permission to the customer provided
+        principal(user / service account) to bind their DNS zone
+        with the intranet VPC associated with the project.
+        DnsBindPermission is a global resource and location can
+        only be global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_grant_dns_bind_permission():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                principal = vmwareengine_v1.Principal()
+                principal.user = "user_value"
+
+                request = vmwareengine_v1.GrantDnsBindPermissionRequest(
+                    name="name_value",
+                    principal=principal,
+                )
+
+                # Make the request
+                operation = client.grant_dns_bind_permission(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GrantDnsBindPermissionRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GrantDnsBindPermission][google.cloud.vmwareengine.v1.VmwareEngine.GrantDnsBindPermission]
+            name (str):
+                Required. The name of the resource which stores the
+                users/service accounts having the permission to bind to
+                the corresponding intranet VPC of the consumer project.
+                DnsBindPermission is a global resource. Resource names
+                are schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/global/dnsBindPermission``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            principal (google.cloud.vmwareengine_v1.types.Principal):
+                Required. The consumer provided
+                user/service account which needs to be
+                granted permission to bind with the
+                intranet VPC corresponding to the
+                consumer project.
+
+                This corresponds to the ``principal`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.DnsBindPermission` DnsBindPermission resource that contains the accounts having the consumer DNS
+                   bind permission on the corresponding intranet VPC of
+                   the consumer project.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name, principal])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GrantDnsBindPermissionRequest):
+            request = vmwareengine.GrantDnsBindPermissionRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+            if principal is not None:
+                request.principal = principal
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.grant_dns_bind_permission
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.DnsBindPermission,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_dns_bind_permission(
+        self,
+        request: Optional[Union[vmwareengine.GetDnsBindPermissionRequest, dict]] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> vmwareengine_resources.DnsBindPermission:
+        r"""Gets all the principals having bind permission on the
+        intranet VPC associated with the consumer project
+        granted by the Grant API. DnsBindPermission is a global
+        resource and location can only be global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_get_dns_bind_permission():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                request = vmwareengine_v1.GetDnsBindPermissionRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_dns_bind_permission(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.GetDnsBindPermissionRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.GetDnsBindPermission][google.cloud.vmwareengine.v1.VmwareEngine.GetDnsBindPermission]
+            name (str):
+                Required. The name of the resource which stores the
+                users/service accounts having the permission to bind to
+                the corresponding intranet VPC of the consumer project.
+                DnsBindPermission is a global resource. Resource names
+                are schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/global/dnsBindPermission``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.vmwareengine_v1.types.DnsBindPermission:
+                DnsBindPermission resource that
+                contains the accounts having the
+                consumer DNS bind permission on the
+                corresponding intranet VPC of the
+                consumer project.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.GetDnsBindPermissionRequest):
+            request = vmwareengine.GetDnsBindPermissionRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_dns_bind_permission]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def revoke_dns_bind_permission(
+        self,
+        request: Optional[
+            Union[vmwareengine.RevokeDnsBindPermissionRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        principal: Optional[vmwareengine_resources.Principal] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> operation.Operation:
+        r"""Revokes the bind permission from the customer
+        provided principal(user / service account) on the
+        intranet VPC associated with the consumer project.
+        DnsBindPermission is a global resource and location can
+        only be global.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import vmwareengine_v1
+
+            def sample_revoke_dns_bind_permission():
+                # Create a client
+                client = vmwareengine_v1.VmwareEngineClient()
+
+                # Initialize request argument(s)
+                principal = vmwareengine_v1.Principal()
+                principal.user = "user_value"
+
+                request = vmwareengine_v1.RevokeDnsBindPermissionRequest(
+                    name="name_value",
+                    principal=principal,
+                )
+
+                # Make the request
+                operation = client.revoke_dns_bind_permission(request=request)
+
+                print("Waiting for operation to complete...")
+
+                response = operation.result()
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.vmwareengine_v1.types.RevokeDnsBindPermissionRequest, dict]):
+                The request object. Request message for
+                [VmwareEngine.RevokeDnsBindPermission][google.cloud.vmwareengine.v1.VmwareEngine.RevokeDnsBindPermission]
+            name (str):
+                Required. The name of the resource which stores the
+                users/service accounts having the permission to bind to
+                the corresponding intranet VPC of the consumer project.
+                DnsBindPermission is a global resource. Resource names
+                are schemeless URIs that follow the conventions in
+                https://cloud.google.com/apis/design/resource_names. For
+                example:
+                ``projects/my-project/locations/global/dnsBindPermission``
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            principal (google.cloud.vmwareengine_v1.types.Principal):
+                Required. The consumer provided
+                user/service account which needs to be
+                granted permission to bind with the
+                intranet VPC corresponding to the
+                consumer project.
+
+                This corresponds to the ``principal`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.api_core.operation.Operation:
+                An object representing a long-running operation.
+
+                The result type for the operation will be :class:`google.cloud.vmwareengine_v1.types.DnsBindPermission` DnsBindPermission resource that contains the accounts having the consumer DNS
+                   bind permission on the corresponding intranet VPC of
+                   the consumer project.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        has_flattened_params = any([name, principal])
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, vmwareengine.RevokeDnsBindPermissionRequest):
+            request = vmwareengine.RevokeDnsBindPermissionRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+            if principal is not None:
+                request.principal = principal
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[
+            self._transport.revoke_dns_bind_permission
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Wrap the response in an operation future.
+        response = operation.from_gapic(
+            response,
+            self._transport.operations_client,
+            vmwareengine_resources.DnsBindPermission,
+            metadata_type=vmwareengine.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def __enter__(self) -> "VmwareEngineClient":
         return self
 
     def __exit__(self, type, value, traceback):
@@ -4648,7 +11000,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operations_pb2.ListOperationsResponse:
         r"""Lists operations that match the specified filter in the request.
 
@@ -4659,8 +11011,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors,
                     if any, should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
         Returns:
             ~.operations_pb2.ListOperationsResponse:
                 Response message for ``ListOperations`` method.
@@ -4673,17 +11027,16 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method.wrap_method(
-            self._transport.list_operations,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._transport._wrapped_methods[self._transport.list_operations]
 
         # Certain fields should be provided within the metadata header;
         # add these here.
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -4702,7 +11055,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operations_pb2.Operation:
         r"""Gets the latest state of a long-running operation.
 
@@ -4713,8 +11066,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors,
                     if any, should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
         Returns:
             ~.operations_pb2.Operation:
                 An ``Operation`` object.
@@ -4727,17 +11082,16 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method.wrap_method(
-            self._transport.get_operation,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._transport._wrapped_methods[self._transport.get_operation]
 
         # Certain fields should be provided within the metadata header;
         # add these here.
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -4756,7 +11110,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> None:
         r"""Deletes a long-running operation.
 
@@ -4772,8 +11126,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors,
                     if any, should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
         Returns:
             None
         """
@@ -4785,17 +11141,16 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method.wrap_method(
-            self._transport.delete_operation,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._transport._wrapped_methods[self._transport.delete_operation]
 
         # Certain fields should be provided within the metadata header;
         # add these here.
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         rpc(
@@ -4811,7 +11166,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> policy_pb2.Policy:
         r"""Sets the IAM access control policy on the specified function.
 
@@ -4824,8 +11179,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
         Returns:
             ~.policy_pb2.Policy:
                 Defines an Identity and Access Management (IAM) policy.
@@ -4902,17 +11259,16 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method.wrap_method(
-            self._transport.set_iam_policy,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._transport._wrapped_methods[self._transport.set_iam_policy]
 
         # Certain fields should be provided within the metadata header;
         # add these here.
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("resource", request.resource),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -4931,7 +11287,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> policy_pb2.Policy:
         r"""Gets the IAM access control policy for a function.
 
@@ -4945,8 +11301,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors, if
                 any, should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
         Returns:
             ~.policy_pb2.Policy:
                 Defines an Identity and Access Management (IAM) policy.
@@ -5023,17 +11381,16 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method.wrap_method(
-            self._transport.get_iam_policy,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._transport._wrapped_methods[self._transport.get_iam_policy]
 
         # Certain fields should be provided within the metadata header;
         # add these here.
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("resource", request.resource),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -5052,7 +11409,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> iam_policy_pb2.TestIamPermissionsResponse:
         r"""Tests the specified IAM permissions against the IAM access control
             policy for a function.
@@ -5067,8 +11424,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors,
                  if any, should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
         Returns:
             ~.iam_policy_pb2.TestIamPermissionsResponse:
                 Response message for ``TestIamPermissions`` method.
@@ -5082,17 +11441,16 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method.wrap_method(
-            self._transport.test_iam_permissions,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._transport._wrapped_methods[self._transport.test_iam_permissions]
 
         # Certain fields should be provided within the metadata header;
         # add these here.
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("resource", request.resource),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -5111,7 +11469,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> locations_pb2.Location:
         r"""Gets information about a location.
 
@@ -5122,8 +11480,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors,
                  if any, should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
         Returns:
             ~.location_pb2.Location:
                 Location object.
@@ -5136,17 +11496,16 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method.wrap_method(
-            self._transport.get_location,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._transport._wrapped_methods[self._transport.get_location]
 
         # Certain fields should be provided within the metadata header;
         # add these here.
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -5165,7 +11524,7 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> locations_pb2.ListLocationsResponse:
         r"""Lists information about the supported locations for this service.
 
@@ -5176,8 +11535,10 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
             retry (google.api_core.retry.Retry): Designation of what errors,
                  if any, should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
         Returns:
             ~.location_pb2.ListLocationsResponse:
                 Response message for ``ListLocations`` method.
@@ -5190,17 +11551,16 @@ class VmwareEngineClient(metaclass=VmwareEngineClientMeta):
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method.wrap_method(
-            self._transport.list_locations,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._transport._wrapped_methods[self._transport.list_locations]
 
         # Certain fields should be provided within the metadata header;
         # add these here.
         metadata = tuple(metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
         )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
 
         # Send the request.
         response = rpc(

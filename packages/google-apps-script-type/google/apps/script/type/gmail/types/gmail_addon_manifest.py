@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
 
-import google.apps.script.type.types  # type: ignore
+from google.apps.script.type.types import extension_point
 
 __protobuf__ = proto.module(
     package="google.apps.script.type.gmail",
@@ -72,12 +74,10 @@ class GmailAddOnManifest(proto.Message):
             experience.
     """
 
-    homepage_trigger: google.apps.script.type.types.HomepageExtensionPoint = (
-        proto.Field(
-            proto.MESSAGE,
-            number=14,
-            message=google.apps.script.type.types.HomepageExtensionPoint,
-        )
+    homepage_trigger: extension_point.HomepageExtensionPoint = proto.Field(
+        proto.MESSAGE,
+        number=14,
+        message=extension_point.HomepageExtensionPoint,
     )
     contextual_triggers: MutableSequence["ContextualTrigger"] = proto.RepeatedField(
         proto.MESSAGE,
@@ -161,17 +161,31 @@ class ComposeTrigger(proto.Message):
     class DraftAccess(proto.Enum):
         r"""An enum defining the level of data access this compose
         trigger requires.
+
+        Values:
+            UNSPECIFIED (0):
+                Default value when nothing is set for
+                DraftAccess.
+            NONE (1):
+                NONE means compose trigger won't be able to
+                access any data of the draft when a compose
+                addon is triggered.
+            METADATA (2):
+                METADATA gives compose trigger the permission
+                to access the metadata of the draft when a
+                compose addon is triggered. This includes the
+                audience list (To/cc list) of a draft message.
         """
         UNSPECIFIED = 0
         NONE = 1
         METADATA = 2
 
     actions: MutableSequence[
-        google.apps.script.type.types.MenuItemExtensionPoint
+        extension_point.MenuItemExtensionPoint
     ] = proto.RepeatedField(
         proto.MESSAGE,
         number=5,
-        message=google.apps.script.type.types.MenuItemExtensionPoint,
+        message=extension_point.MenuItemExtensionPoint,
     )
     draft_access: DraftAccess = proto.Field(
         proto.ENUM,

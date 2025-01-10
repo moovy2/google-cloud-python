@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.type import postal_address_pb2  # type: ignore
@@ -29,23 +31,26 @@ __protobuf__ = proto.module(
 
 
 class Address(proto.Message):
-    r"""Details of the address parsed from the input.
+    r"""Details of the post-processed address. Post-processing
+    includes correcting misspelled parts of the address, replacing
+    incorrect parts, and inferring missing parts.
 
     Attributes:
         formatted_address (str):
-            The corrected address, formatted as a
+            The post-processed address, formatted as a
             single-line address following the address
             formatting rules of the region where the address
             is located.
         postal_address (google.type.postal_address_pb2.PostalAddress):
-            The validated address represented as a postal
-            address.
+            The post-processed address represented as a
+            postal address.
         address_components (MutableSequence[google.maps.addressvalidation_v1.types.AddressComponent]):
             Unordered list. The individual address
             components of the formatted and corrected
             address, along with validation information. This
             provides information on the validation status of
             the individual components.
+
             Address components are not ordered in a
             particular way. Do not make any assumptions on
             the ordering of the address components in the
@@ -133,10 +138,13 @@ class AddressComponent(proto.Message):
             location and believe it should be provided for a
             complete address.
         spell_corrected (bool):
-            Indicates the spelling of the component name
-            was corrected in a minor way, for example by
-            switching two characters that appeared in the
-            wrong order. This indicates a cosmetic change.
+            Indicates a correction to a misspelling in
+            the component name.  The API does not always
+            flag changes from one spelling variant to
+            another, such as when changing "centre" to
+            "center". It also does not always flag common
+            misspellings, such as when changing
+            "Amphitheater Pkwy" to "Amphitheatre Pkwy".
         replaced (bool):
             Indicates the name of the component was
             replaced with a completely different one, for
@@ -152,7 +160,26 @@ class AddressComponent(proto.Message):
     """
 
     class ConfirmationLevel(proto.Enum):
-        r"""The different possible values for confirmation levels."""
+        r"""The different possible values for confirmation levels.
+
+        Values:
+            CONFIRMATION_LEVEL_UNSPECIFIED (0):
+                Default value. This value is unused.
+            CONFIRMED (1):
+                We were able to verify that this component
+                exists and makes sense in the context of the
+                rest of the address.
+            UNCONFIRMED_BUT_PLAUSIBLE (2):
+                This component could not be confirmed, but it
+                is plausible that it exists. For example, a
+                street number within a known valid range of
+                numbers on a street where specific house numbers
+                are not known.
+            UNCONFIRMED_AND_SUSPICIOUS (3):
+                This component was not confirmed and is
+                likely to be wrong. For example, a neighborhood
+                that does not fit the rest of the address.
+        """
         CONFIRMATION_LEVEL_UNSPECIFIED = 0
         CONFIRMED = 1
         UNCONFIRMED_BUT_PLAUSIBLE = 2

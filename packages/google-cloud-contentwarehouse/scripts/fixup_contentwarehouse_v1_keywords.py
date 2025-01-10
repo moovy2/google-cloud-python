@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,7 +59,9 @@ class contentwarehouseCallTransformer(cst.CSTTransformer):
         'list_linked_targets': ('parent', 'request_metadata', ),
         'list_rule_sets': ('parent', 'page_size', 'page_token', ),
         'list_synonym_sets': ('parent', 'page_size', 'page_token', ),
-        'search_documents': ('parent', 'request_metadata', 'document_query', 'offset', 'page_size', 'page_token', 'order_by', 'histogram_queries', 'require_total_size', 'qa_size_limit', ),
+        'lock_document': ('name', 'collection_id', 'locking_user', ),
+        'run_pipeline': ('name', 'gcs_ingest_pipeline', 'gcs_ingest_with_doc_ai_processors_pipeline', 'export_cdw_pipeline', 'process_with_doc_ai_pipeline', 'request_metadata', ),
+        'search_documents': ('parent', 'request_metadata', 'document_query', 'offset', 'page_size', 'page_token', 'order_by', 'histogram_queries', 'require_total_size', 'total_result_size', 'qa_size_limit', ),
         'set_acl': ('resource', 'policy', 'request_metadata', 'project_owner', ),
         'update_document': ('name', 'document', 'request_metadata', 'cloud_ai_document_option', 'update_options', ),
         'update_document_schema': ('name', 'document_schema', ),

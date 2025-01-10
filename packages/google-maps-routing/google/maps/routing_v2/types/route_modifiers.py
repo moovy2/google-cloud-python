@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -34,25 +36,25 @@ class RouteModifiers(proto.Message):
 
     Attributes:
         avoid_tolls (bool):
-            Specifies whether to avoid toll roads where reasonable.
-            Preference will be given to routes not containing toll
-            roads. Applies only to the ``DRIVE`` and ``TWO_WHEELER``
-            travel modes.
+            When set to true, avoids toll roads where reasonable, giving
+            preference to routes not containing toll roads. Applies only
+            to the ``DRIVE`` and ``TWO_WHEELER``
+            [``RouteTravelMode``][google.maps.routing.v2.RouteTravelMode].
         avoid_highways (bool):
-            Specifies whether to avoid highways where reasonable.
-            Preference will be given to routes not containing highways.
-            Applies only to the ``DRIVE`` and ``TWO_WHEELER`` travel
-            modes.
+            When set to true, avoids highways where reasonable, giving
+            preference to routes not containing highways. Applies only
+            to the ``DRIVE`` and ``TWO_WHEELER``
+            [``RouteTravelMode``][google.maps.routing.v2.RouteTravelMode].
         avoid_ferries (bool):
-            Specifies whether to avoid ferries where reasonable.
-            Preference will be given to routes not containing travel by
-            ferries. Applies only to the ``DRIVE`` and\ ``TWO_WHEELER``
-            travel modes.
+            When set to true, avoids ferries where reasonable, giving
+            preference to routes not containing ferries. Applies only to
+            the ``DRIVE`` and\ ``TWO_WHEELER``
+            [``RouteTravelMode``][google.maps.routing.v2.RouteTravelMode].
         avoid_indoor (bool):
-            Specifies whether to avoid navigating indoors where
-            reasonable. Preference will be given to routes not
-            containing indoor navigation. Applies only to the ``WALK``
-            travel mode.
+            When set to true, avoids navigating indoors where
+            reasonable, giving preference to routes not containing
+            indoor navigation. Applies only to the ``WALK``
+            [``RouteTravelMode``][google.maps.routing.v2.RouteTravelMode].
         vehicle_info (google.maps.routing_v2.types.VehicleInfo):
             Specifies the vehicle information.
         toll_passes (MutableSequence[google.maps.routing_v2.types.TollPass]):
@@ -60,7 +62,8 @@ class RouteModifiers(proto.Message):
             are provided, the API tries to return the pass price. If
             toll passes are not provided, the API treats the toll pass
             as unknown and tries to return the cash price. Applies only
-            to the DRIVE and TWO_WHEELER travel modes.
+            to the ``DRIVE`` and ``TWO_WHEELER``
+            [``RouteTravelMode``][google.maps.routing.v2.RouteTravelMode].
     """
 
     avoid_tolls: bool = proto.Field(

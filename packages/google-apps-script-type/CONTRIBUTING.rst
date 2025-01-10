@@ -22,7 +22,7 @@ In order to add a feature:
   documentation.
 
 - The feature must work fully on the following CPython versions:
-  3.7, 3.8, 3.9 and 3.10 on both UNIX and Windows.
+  3.7, 3.8, 3.9, 3.10, 3.11, 3.12 and 3.13 on both UNIX and Windows.
 
 - The feature must not add unnecessary dependencies (where
   "unnecessary" is of course subjective, but new dependencies should
@@ -72,7 +72,7 @@ We use `nox <https://nox.readthedocs.io/en/latest/>`__ to instrument our tests.
 
 - To run a single unit test::
 
-    $ nox -s unit-3.10 -- -k <name of test>
+    $ nox -s unit-3.13 -- -k <name of test>
 
 
   .. note::
@@ -143,12 +143,12 @@ Running System Tests
    $ nox -s system
 
    # Run a single system test
-   $ nox -s system- -- -k <name of test>
+   $ nox -s system-3.13 -- -k <name of test>
 
 
   .. note::
 
-      System tests are only configured to run under Python.
+      System tests are only configured to run under Python 3.8, 3.9, 3.10, 3.11, 3.12 and 3.13.
       For expediency, we do not run them in older versions of Python 3.
 
   This alone will not run the tests. You'll need to change some local
@@ -225,29 +225,23 @@ We support:
 -  `Python 3.8`_
 -  `Python 3.9`_
 -  `Python 3.10`_
+-  `Python 3.11`_
+-  `Python 3.12`_
+-  `Python 3.13`_
 
 .. _Python 3.7: https://docs.python.org/3.7/
 .. _Python 3.8: https://docs.python.org/3.8/
 .. _Python 3.9: https://docs.python.org/3.9/
 .. _Python 3.10: https://docs.python.org/3.10/
+.. _Python 3.11: https://docs.python.org/3.11/
+.. _Python 3.12: https://docs.python.org/3.12/
+.. _Python 3.13: https://docs.python.org/3.13/
 
 
 Supported versions can be found in our ``noxfile.py`` `config`_.
 
-.. _config: https://github.com/googleapis/google-cloud-python/blob/main/noxfile.py
+.. _config: https://github.com/googleapis/google-cloud-python/blob/main/packages/google-apps-script-type/noxfile.py
 
-
-We also explicitly decided to support Python 3 beginning with version 3.7.
-Reasons for this include:
-
--  Encouraging use of newest versions of Python 3
--  Taking the lead of `prominent`_ open-source `projects`_
--  `Unicode literal support`_ which allows for a cleaner codebase that
-   works in both Python 2 and Python 3
-
-.. _prominent: https://docs.djangoproject.com/en/1.9/faq/install/#what-python-version-can-i-use-with-django
-.. _projects: http://flask.pocoo.org/docs/0.10/python3/
-.. _Unicode literal support: https://www.python.org/dev/peps/pep-0414/
 
 **********
 Versioning

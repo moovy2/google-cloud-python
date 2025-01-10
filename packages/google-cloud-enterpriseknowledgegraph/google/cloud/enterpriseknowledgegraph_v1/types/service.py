@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.protobuf import struct_pb2  # type: ignore
@@ -70,6 +72,24 @@ class InputConfig(proto.Message):
         r"""The type of entities we will support. Currently, we only
         support people, establishment, property, and product types. If
         the type is unspecified, it will be generic type.
+
+        Values:
+            ENTITY_TYPE_UNSPECIFIED (0):
+                The default value.
+            PEOPLE (1):
+                People entity.
+            ESTABLISHMENT (2):
+                Establishment entity.
+            PROPERTY (3):
+                Property entity. e.g. real estate property.
+            PRODUCT (4):
+                Product entity.
+            ORGANIZATION (5):
+                Organization entity.
+            LOCAL_BUSINESS (6):
+                Local Business entity.
+            PERSON (7):
+                Person entity.
         """
         ENTITY_TYPE_UNSPECIFIED = 0
         PEOPLE = 1
@@ -167,9 +187,11 @@ class ReconConfig(proto.Message):
                 If true, separate clusters by their
                 geographic region (from geocoding). Uses the
                 following entity features:
+
                 - schema.org/addressLocality
                 - schema.org/addressRegion
                 - schema.org/addressCountry
+
                 Warning: processing will no longer be
                 regionalized!
         """

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 #
 import io
 import os
+import re
 
 import setuptools  # type: ignore
 
@@ -25,10 +26,12 @@ name = "google-apps-script-type"
 
 description = "Google Apps Script Type API client library"
 
-version = {}
+version = None
+
 with open(os.path.join(package_root, "google/apps/script/type/gapic_version.py")) as fp:
-    exec(fp.read(), version)
-version = version["__version__"]
+    version_candidates = re.findall(r"(?<=\")\d+.\d+.\d+(?=\")", fp.read())
+    assert len(version_candidates) == 1
+    version = version_candidates[0]
 
 if version[0] == "0":
     release_status = "Development Status :: 4 - Beta"
@@ -36,11 +39,16 @@ else:
     release_status = "Development Status :: 5 - Production/Stable"
 
 dependencies = [
-    "google-api-core[grpc] >= 1.34.0, <3.0.0dev,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*",
-    "proto-plus >= 1.22.0, <2.0.0dev",
-    "protobuf>=3.19.5,<5.0.0dev,!=3.20.0,!=3.20.1,!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5",
+    "google-api-core[grpc] >= 1.34.1, <3.0.0dev,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*",
+    # Exclude incompatible versions of `google-auth`
+    # See https://github.com/googleapis/google-cloud-python/issues/12364
+    "google-auth >= 2.14.1, <3.0.0dev,!=2.24.0,!=2.25.0",
+    "proto-plus >= 1.22.3, <2.0.0dev",
+    "proto-plus >= 1.25.0, <2.0.0dev; python_version >= '3.13'",
+    "protobuf>=3.20.2,<6.0.0dev,!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5",
 ]
-url = "https://github.com/googleapis/python-apps-script-type"
+extras = {}
+url = "https://github.com/googleapis/google-cloud-python/tree/main/packages/google-apps-script-type"
 
 package_root = os.path.abspath(os.path.dirname(__file__))
 
@@ -50,13 +58,9 @@ with io.open(readme_filename, encoding="utf-8") as readme_file:
 
 packages = [
     package
-    for package in setuptools.PEP420PackageFinder.find()
+    for package in setuptools.find_namespace_packages()
     if package.startswith("google")
 ]
-
-namespaces = ["google"]
-if "google.cloud" in packages:
-    namespaces.append("google.cloud")
 
 setuptools.setup(
     name=name,
@@ -77,14 +81,17 @@ setuptools.setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Operating System :: OS Independent",
         "Topic :: Internet",
     ],
     platforms="Posix; MacOS X; Windows",
     packages=packages,
     python_requires=">=3.7",
-    namespace_packages=namespaces,
     install_requires=dependencies,
+    extras_require=extras,
     include_package_data=True,
     zip_safe=False,
 )

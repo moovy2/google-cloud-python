@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.iam.v1 import policy_pb2  # type: ignore
+from google.longrunning import operations_pb2  # type: ignore
 import proto  # type: ignore
 
 from google.cloud.contentwarehouse_v1.types import common
@@ -51,6 +54,8 @@ class CreateDocumentResponse(proto.Message):
         metadata (google.cloud.contentwarehouse_v1.types.ResponseMetadata):
             Additional information for the API
             invocation, such as the request tracking id.
+        long_running_operations (MutableSequence[google.longrunning.operations_pb2.Operation]):
+            post-processing LROs
     """
 
     document: gcc_document.Document = proto.Field(
@@ -67,6 +72,13 @@ class CreateDocumentResponse(proto.Message):
         proto.MESSAGE,
         number=3,
         message=common.ResponseMetadata,
+    )
+    long_running_operations: MutableSequence[
+        operations_pb2.Operation
+    ] = proto.RepeatedField(
+        proto.MESSAGE,
+        number=4,
+        message=operations_pb2.Operation,
     )
 
 
@@ -165,17 +177,22 @@ class SearchDocumentsResponse(proto.Message):
             The total number of matched documents which is available
             only if the client set
             [SearchDocumentsRequest.require_total_size][google.cloud.contentwarehouse.v1.SearchDocumentsRequest.require_total_size]
-            to ``true``. Otherwise, the value will be ``-1``.
-            ``total_size`` will max at "100,000". If this is returned,
-            then it can be assumed that the count is equal to or greater
-            than 100,000. Typically a UI would handle this condition by
-            displaying "of many", for example: "Displaying 10 of many".
+            to ``true`` or set
+            [SearchDocumentsRequest.total_result_size][google.cloud.contentwarehouse.v1.SearchDocumentsRequest.total_result_size]
+            to ``ESTIMATED_SIZE`` or ``ACTUAL_SIZE``. Otherwise, the
+            value will be ``-1``. Typically a UI would handle this
+            condition by displaying "of many", for example: "Displaying
+            10 of many".
         metadata (google.cloud.contentwarehouse_v1.types.ResponseMetadata):
             Additional information for the API
             invocation, such as the request tracking id.
         histogram_query_results (MutableSequence[google.cloud.contentwarehouse_v1.types.HistogramQueryResult]):
             The histogram results that match with the specified
             [SearchDocumentsRequest.histogram_queries][google.cloud.contentwarehouse.v1.SearchDocumentsRequest.histogram_queries].
+        question_answer (str):
+            Experimental.
+            Question answer from the query against the
+            document.
     """
 
     class MatchingDocument(proto.Message):
@@ -203,6 +220,9 @@ class SearchDocumentsResponse(proto.Message):
                 Experimental.
                 Additional result info if the question-answering
                 feature is enabled.
+            matched_token_page_indices (MutableSequence[int]):
+                Return the 1-based page indices where those
+                pages have one or more matched tokens.
         """
 
         document: gcc_document.Document = proto.Field(
@@ -218,6 +238,10 @@ class SearchDocumentsResponse(proto.Message):
             proto.MESSAGE,
             number=3,
             message="QAResult",
+        )
+        matched_token_page_indices: MutableSequence[int] = proto.RepeatedField(
+            proto.INT64,
+            number=4,
         )
 
     @property
@@ -248,6 +272,10 @@ class SearchDocumentsResponse(proto.Message):
         proto.MESSAGE,
         number=6,
         message=histogram.HistogramQueryResult,
+    )
+    question_answer: str = proto.Field(
+        proto.STRING,
+        number=7,
     )
 
 

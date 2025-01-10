@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
 
-import google.apps.script.type.types  # type: ignore
+from google.apps.script.type.types import extension_point
 
 __protobuf__ = proto.module(
     package="google.apps.script.type.drive",
@@ -41,12 +43,10 @@ class DriveAddOnManifest(proto.Message):
             (e.g. the My Drive Doclist).
     """
 
-    homepage_trigger: google.apps.script.type.types.HomepageExtensionPoint = (
-        proto.Field(
-            proto.MESSAGE,
-            number=1,
-            message=google.apps.script.type.types.HomepageExtensionPoint,
-        )
+    homepage_trigger: extension_point.HomepageExtensionPoint = proto.Field(
+        proto.MESSAGE,
+        number=1,
+        message=extension_point.HomepageExtensionPoint,
     )
     on_items_selected_trigger: "DriveExtensionPoint" = proto.Field(
         proto.MESSAGE,

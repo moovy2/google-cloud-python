@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from google.cloud.contentwarehouse import gapic_version as package_version
+from google.cloud.contentwarehouse_v1 import gapic_version as package_version
 
 __version__ = package_version.__version__
 
@@ -27,6 +27,7 @@ from .services.document_schema_service import (
     DocumentSchemaServiceClient,
 )
 from .services.document_service import DocumentServiceAsyncClient, DocumentServiceClient
+from .services.pipeline_service import PipelineServiceAsyncClient, PipelineServiceClient
 from .services.rule_set_service import RuleSetServiceAsyncClient, RuleSetServiceClient
 from .services.synonym_set_service import (
     SynonymSetServiceAsyncClient,
@@ -39,6 +40,7 @@ from .types.async_document_service_request import (
 from .types.common import (
     AccessControlMode,
     DatabaseType,
+    DocumentCreatorDefaultRole,
     MergeFieldsOptions,
     RequestMetadata,
     ResponseMetadata,
@@ -47,6 +49,7 @@ from .types.common import (
     UserInfo,
 )
 from .types.document import (
+    ContentCategory,
     DateTimeArray,
     Document,
     DocumentReference,
@@ -106,15 +109,34 @@ from .types.document_service_request import (
     DeleteDocumentRequest,
     FetchAclRequest,
     GetDocumentRequest,
+    LockDocumentRequest,
     SearchDocumentsRequest,
     SetAclRequest,
     UpdateDocumentRequest,
 )
-from .types.filters import DocumentQuery, FileTypeFilter, PropertyFilter, TimeFilter
+from .types.filters import (
+    CustomWeightsMetadata,
+    DocumentQuery,
+    FileTypeFilter,
+    PropertyFilter,
+    TimeFilter,
+    WeightedSchemaProperty,
+)
 from .types.histogram import (
     HistogramQuery,
     HistogramQueryPropertyNameFilter,
     HistogramQueryResult,
+)
+from .types.pipeline_service import RunPipelineRequest
+from .types.pipelines import (
+    ExportToCdwPipeline,
+    GcsIngestPipeline,
+    GcsIngestWithDocAiProcessorsPipeline,
+    IngestPipelineConfig,
+    ProcessorInfo,
+    ProcessWithDocAiPipeline,
+    RunPipelineMetadata,
+    RunPipelineResponse,
 )
 from .types.rule_engine import (
     AccessControlAction,
@@ -156,6 +178,7 @@ __all__ = (
     "DocumentLinkServiceAsyncClient",
     "DocumentSchemaServiceAsyncClient",
     "DocumentServiceAsyncClient",
+    "PipelineServiceAsyncClient",
     "RuleSetServiceAsyncClient",
     "SynonymSetServiceAsyncClient",
     "AccessControlAction",
@@ -165,6 +188,7 @@ __all__ = (
     "ActionOutput",
     "AddToFolderAction",
     "CloudAIDocumentOption",
+    "ContentCategory",
     "CreateDocumentLinkRequest",
     "CreateDocumentMetadata",
     "CreateDocumentRequest",
@@ -172,6 +196,7 @@ __all__ = (
     "CreateDocumentSchemaRequest",
     "CreateRuleSetRequest",
     "CreateSynonymSetRequest",
+    "CustomWeightsMetadata",
     "DataUpdateAction",
     "DataValidationAction",
     "DatabaseType",
@@ -184,6 +209,7 @@ __all__ = (
     "DeleteRuleSetRequest",
     "DeleteSynonymSetRequest",
     "Document",
+    "DocumentCreatorDefaultRole",
     "DocumentLink",
     "DocumentLinkServiceClient",
     "DocumentQuery",
@@ -194,11 +220,14 @@ __all__ = (
     "EnumArray",
     "EnumTypeOptions",
     "EnumValue",
+    "ExportToCdwPipeline",
     "FetchAclRequest",
     "FetchAclResponse",
     "FileTypeFilter",
     "FloatArray",
     "FloatTypeOptions",
+    "GcsIngestPipeline",
+    "GcsIngestWithDocAiProcessorsPipeline",
     "GetDocumentRequest",
     "GetDocumentSchemaRequest",
     "GetRuleSetRequest",
@@ -206,6 +235,7 @@ __all__ = (
     "HistogramQuery",
     "HistogramQueryPropertyNameFilter",
     "HistogramQueryResult",
+    "IngestPipelineConfig",
     "IntegerArray",
     "IntegerTypeOptions",
     "InvalidRule",
@@ -219,9 +249,13 @@ __all__ = (
     "ListRuleSetsResponse",
     "ListSynonymSetsRequest",
     "ListSynonymSetsResponse",
+    "LockDocumentRequest",
     "MapProperty",
     "MapTypeOptions",
     "MergeFieldsOptions",
+    "PipelineServiceClient",
+    "ProcessWithDocAiPipeline",
+    "ProcessorInfo",
     "Property",
     "PropertyArray",
     "PropertyDefinition",
@@ -239,6 +273,9 @@ __all__ = (
     "RuleEvaluatorOutput",
     "RuleSet",
     "RuleSetServiceClient",
+    "RunPipelineMetadata",
+    "RunPipelineRequest",
+    "RunPipelineResponse",
     "SearchDocumentsRequest",
     "SearchDocumentsResponse",
     "SetAclRequest",
@@ -261,4 +298,5 @@ __all__ = (
     "UpdateType",
     "UserInfo",
     "Value",
+    "WeightedSchemaProperty",
 )

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,18 +14,25 @@
 # limitations under the License.
 #
 from .fallback_info import FallbackInfo, FallbackReason, FallbackRoutingMode
+from .geocoding_results import GeocodedWaypoint, GeocodingResults
+from .localized_time import LocalizedTime
 from .location import Location
+from .maneuver import Maneuver
 from .navigation_instruction import NavigationInstruction
 from .polyline import Polyline, PolylineEncoding, PolylineQuality
+from .polyline_details import PolylineDetails
 from .route import (
     Route,
     RouteLeg,
     RouteLegStep,
+    RouteLegStepTransitDetails,
     RouteLegStepTravelAdvisory,
     RouteLegTravelAdvisory,
     RouteTravelAdvisory,
 )
+from .route_label import RouteLabel
 from .route_modifiers import RouteModifiers
+from .route_travel_mode import RouteTravelMode
 from .routes_service import (
     ComputeRouteMatrixRequest,
     ComputeRoutesRequest,
@@ -35,8 +42,15 @@ from .routes_service import (
     RouteMatrixElementCondition,
     RouteMatrixOrigin,
 )
+from .routing_preference import RoutingPreference
 from .speed_reading_interval import SpeedReadingInterval
 from .toll_info import TollInfo
+from .toll_passes import TollPass
+from .traffic_model import TrafficModel
+from .transit import TransitAgency, TransitLine, TransitStop, TransitVehicle
+from .transit_preferences import TransitPreferences
+from .units import Units
+from .vehicle_emission_type import VehicleEmissionType
 from .vehicle_info import VehicleInfo
 from .waypoint import Waypoint
 
@@ -44,15 +58,20 @@ __all__ = (
     "FallbackInfo",
     "FallbackReason",
     "FallbackRoutingMode",
+    "GeocodedWaypoint",
+    "GeocodingResults",
+    "LocalizedTime",
     "Location",
     "Maneuver",
     "NavigationInstruction",
     "Polyline",
     "PolylineEncoding",
     "PolylineQuality",
+    "PolylineDetails",
     "Route",
     "RouteLeg",
     "RouteLegStep",
+    "RouteLegStepTransitDetails",
     "RouteLegStepTravelAdvisory",
     "RouteLegTravelAdvisory",
     "RouteTravelAdvisory",
@@ -70,6 +89,12 @@ __all__ = (
     "SpeedReadingInterval",
     "TollInfo",
     "TollPass",
+    "TrafficModel",
+    "TransitAgency",
+    "TransitLine",
+    "TransitStop",
+    "TransitVehicle",
+    "TransitPreferences",
     "Units",
     "VehicleEmissionType",
     "VehicleInfo",

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ from .async_document_service_request import (
 from .common import (
     AccessControlMode,
     DatabaseType,
+    DocumentCreatorDefaultRole,
     MergeFieldsOptions,
     RequestMetadata,
     ResponseMetadata,
@@ -28,6 +29,7 @@ from .common import (
     UserInfo,
 )
 from .document import (
+    ContentCategory,
     DateTimeArray,
     Document,
     DocumentReference,
@@ -87,15 +89,34 @@ from .document_service_request import (
     DeleteDocumentRequest,
     FetchAclRequest,
     GetDocumentRequest,
+    LockDocumentRequest,
     SearchDocumentsRequest,
     SetAclRequest,
     UpdateDocumentRequest,
 )
-from .filters import DocumentQuery, FileTypeFilter, PropertyFilter, TimeFilter
+from .filters import (
+    CustomWeightsMetadata,
+    DocumentQuery,
+    FileTypeFilter,
+    PropertyFilter,
+    TimeFilter,
+    WeightedSchemaProperty,
+)
 from .histogram import (
     HistogramQuery,
     HistogramQueryPropertyNameFilter,
     HistogramQueryResult,
+)
+from .pipeline_service import RunPipelineRequest
+from .pipelines import (
+    ExportToCdwPipeline,
+    GcsIngestPipeline,
+    GcsIngestWithDocAiProcessorsPipeline,
+    IngestPipelineConfig,
+    ProcessorInfo,
+    ProcessWithDocAiPipeline,
+    RunPipelineMetadata,
+    RunPipelineResponse,
 )
 from .rule_engine import (
     AccessControlAction,
@@ -143,6 +164,7 @@ __all__ = (
     "UserInfo",
     "AccessControlMode",
     "DatabaseType",
+    "DocumentCreatorDefaultRole",
     "UpdateType",
     "DateTimeArray",
     "Document",
@@ -158,6 +180,7 @@ __all__ = (
     "TimestampArray",
     "TimestampValue",
     "Value",
+    "ContentCategory",
     "RawDocumentFileType",
     "CreateDocumentLinkRequest",
     "DeleteDocumentLinkRequest",
@@ -193,16 +216,28 @@ __all__ = (
     "DeleteDocumentRequest",
     "FetchAclRequest",
     "GetDocumentRequest",
+    "LockDocumentRequest",
     "SearchDocumentsRequest",
     "SetAclRequest",
     "UpdateDocumentRequest",
+    "CustomWeightsMetadata",
     "DocumentQuery",
     "FileTypeFilter",
     "PropertyFilter",
     "TimeFilter",
+    "WeightedSchemaProperty",
     "HistogramQuery",
     "HistogramQueryPropertyNameFilter",
     "HistogramQueryResult",
+    "RunPipelineRequest",
+    "ExportToCdwPipeline",
+    "GcsIngestPipeline",
+    "GcsIngestWithDocAiProcessorsPipeline",
+    "IngestPipelineConfig",
+    "ProcessorInfo",
+    "ProcessWithDocAiPipeline",
+    "RunPipelineMetadata",
+    "RunPipelineResponse",
     "AccessControlAction",
     "Action",
     "ActionExecutorOutput",

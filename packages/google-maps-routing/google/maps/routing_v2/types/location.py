@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.protobuf import wrappers_pb2  # type: ignore
@@ -36,11 +38,12 @@ class Location(proto.Message):
             The waypoint's geographic coordinates.
         heading (google.protobuf.wrappers_pb2.Int32Value):
             The compass heading associated with the direction of the
-            flow of traffic. This value is used to specify the side of
-            the road to use for pickup and drop-off. Heading values can
-            be from 0 to 360, where 0 specifies a heading of due North,
-            90 specifies a heading of due East, etc. You can use this
-            field only for ``DRIVE`` and ``TWO_WHEELER`` travel modes.
+            flow of traffic. This value specifies the side of the road
+            for pickup and drop-off. Heading values can be from 0 to
+            360, where 0 specifies a heading of due North, 90 specifies
+            a heading of due East, and so on. You can use this field
+            only for ``DRIVE`` and ``TWO_WHEELER``
+            [``RouteTravelMode``][google.maps.routing.v2.RouteTravelMode].
     """
 
     lat_lng: latlng_pb2.LatLng = proto.Field(

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.protobuf import struct_pb2  # type: ignore
@@ -29,14 +31,41 @@ __protobuf__ = proto.module(
 
 
 class PolylineQuality(proto.Enum):
-    r"""A set of values that specify the quality of the polyline."""
+    r"""A set of values that specify the quality of the polyline.
+
+    Values:
+        POLYLINE_QUALITY_UNSPECIFIED (0):
+            No polyline quality preference specified. Defaults to
+            ``OVERVIEW``.
+        HIGH_QUALITY (1):
+            Specifies a high-quality polyline - which is composed using
+            more points than ``OVERVIEW``, at the cost of increased
+            response size. Use this value when you need more precision.
+        OVERVIEW (2):
+            Specifies an overview polyline - which is composed using a
+            small number of points. Use this value when displaying an
+            overview of the route. Using this option has a lower request
+            latency compared to using the ``HIGH_QUALITY`` option.
+    """
     POLYLINE_QUALITY_UNSPECIFIED = 0
     HIGH_QUALITY = 1
     OVERVIEW = 2
 
 
 class PolylineEncoding(proto.Enum):
-    r"""Specifies the preferred type of polyline to be returned."""
+    r"""Specifies the preferred type of polyline to be returned.
+
+    Values:
+        POLYLINE_ENCODING_UNSPECIFIED (0):
+            No polyline type preference specified. Defaults to
+            ``ENCODED_POLYLINE``.
+        ENCODED_POLYLINE (1):
+            Specifies a polyline encoded using the `polyline encoding
+            algorithm </maps/documentation/utilities/polylinealgorithm>`__.
+        GEO_JSON_LINESTRING (2):
+            Specifies a polyline using the `GeoJSON LineString
+            format <https://tools.ietf.org/html/rfc7946#section-3.1.4>`__
+    """
     POLYLINE_ENCODING_UNSPECIFIED = 0
     ENCODED_POLYLINE = 1
     GEO_JSON_LINESTRING = 2
@@ -61,7 +90,7 @@ class Polyline(proto.Message):
             This field is a member of `oneof`_ ``polyline_type``.
         geo_json_linestring (google.protobuf.struct_pb2.Struct):
             Specifies a polyline using the `GeoJSON LineString
-            format <https://tools.ietf.org/html/rfc7946#section-3.1.4>`__
+            format <https://tools.ietf.org/html/rfc7946#section-3.1.4>`__.
 
             This field is a member of `oneof`_ ``polyline_type``.
     """
