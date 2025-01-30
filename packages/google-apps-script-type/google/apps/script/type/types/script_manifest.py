@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.protobuf import struct_pb2  # type: ignore
@@ -32,7 +34,20 @@ __protobuf__ = proto.module(
 
 
 class HttpAuthorizationHeader(proto.Enum):
-    r"""Authorization header sent in add-on HTTP requests"""
+    r"""Authorization header sent in add-on HTTP requests
+
+    Values:
+        HTTP_AUTHORIZATION_HEADER_UNSPECIFIED (0):
+            Default value, equivalent to ``SYSTEM_ID_TOKEN``
+        SYSTEM_ID_TOKEN (1):
+            Send an ID token for the project-specific
+            Google Workspace add-ons system service account
+            (default)
+        USER_ID_TOKEN (2):
+            Send an ID token for the end user
+        NONE (3):
+            Do not send an Authentication header
+    """
     HTTP_AUTHORIZATION_HEADER_UNSPECIFIED = 0
     SYSTEM_ID_TOKEN = 1
     USER_ID_TOKEN = 2

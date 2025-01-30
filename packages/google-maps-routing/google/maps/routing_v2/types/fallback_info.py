@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -28,14 +30,42 @@ __protobuf__ = proto.module(
 
 
 class FallbackReason(proto.Enum):
-    r"""Reasons for using fallback response."""
+    r"""Reasons for using fallback response.
+
+    Values:
+        FALLBACK_REASON_UNSPECIFIED (0):
+            No fallback reason specified.
+        SERVER_ERROR (1):
+            A server error happened while calculating
+            routes with your preferred routing mode, but we
+            were able to return a result calculated by an
+            alternative mode.
+        LATENCY_EXCEEDED (2):
+            We were not able to finish the calculation
+            with your preferred routing mode on time, but we
+            were able to return a result calculated by an
+            alternative mode.
+    """
     FALLBACK_REASON_UNSPECIFIED = 0
     SERVER_ERROR = 1
     LATENCY_EXCEEDED = 2
 
 
 class FallbackRoutingMode(proto.Enum):
-    r"""Actual routing mode used for returned fallback response."""
+    r"""Actual routing mode used for returned fallback response.
+
+    Values:
+        FALLBACK_ROUTING_MODE_UNSPECIFIED (0):
+            Not used.
+        FALLBACK_TRAFFIC_UNAWARE (1):
+            Indicates the ``TRAFFIC_UNAWARE``
+            [``RoutingPreference``][google.maps.routing.v2.RoutingPreference]
+            was used to compute the response.
+        FALLBACK_TRAFFIC_AWARE (2):
+            Indicates the ``TRAFFIC_AWARE``
+            [``RoutingPreference``][google.maps.routing.v2.RoutingPreference]
+            was used to compute the response.
+    """
     FALLBACK_ROUTING_MODE_UNSPECIFIED = 0
     FALLBACK_TRAFFIC_UNAWARE = 1
     FALLBACK_TRAFFIC_AWARE = 2

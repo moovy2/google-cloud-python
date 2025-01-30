@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ def sample_create_private_cloud():
     # Initialize request argument(s)
     private_cloud = vmwareengine_v1.PrivateCloud()
     private_cloud.network_config.management_cidr = "management_cidr_value"
+    private_cloud.management_cluster.cluster_id = "cluster_id_value"
 
     request = vmwareengine_v1.CreatePrivateCloudRequest(
         parent="parent_value",

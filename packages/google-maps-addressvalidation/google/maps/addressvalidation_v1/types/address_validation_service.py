@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.type import postal_address_pb2  # type: ignore
@@ -48,8 +50,8 @@ class ValidateAddressRequest(proto.Message):
             The total length of the fields in this input must not exceed
             280 characters.
 
-            Supported regions can be found in the
-            `FAQ <https://developers.google.com/maps/documentation/address-validation/faq#which_regions_are_currently_supported>`__.
+            Supported regions can be found
+            `here <https://developers.google.com/maps/documentation/address-validation/coverage>`__.
 
             The [language_code][google.type.PostalAddress.language_code]
             value in the input address is reserved for future uses and
@@ -87,6 +89,30 @@ class ValidateAddressRequest(proto.Message):
             [google.type.PostalAddress.address_lines] where the first
             line contains the street number and name and the second line
             contains the city, state, and zip code.
+        session_token (str):
+            Optional. A string which identifies an Autocomplete session
+            for billing purposes. Must be a URL and filename safe base64
+            string with at most 36 ASCII characters in length. Otherwise
+            an INVALID_ARGUMENT error is returned.
+
+            The session begins when the user starts typing a query, and
+            concludes when they select a place and a call to Place
+            Details or Address Validation is made. Each session can have
+            multiple autocomplete queries, followed by one Place Details
+            or Address Validation request. The credentials used for each
+            request within a session must belong to the same Google
+            Cloud Console project. Once a session has concluded, the
+            token is no longer valid; your app must generate a fresh
+            token for each session. If the ``session_token`` parameter
+            is omitted, or if you reuse a session token, the session is
+            charged as if no session token was provided (each request is
+            billed separately).
+
+            Note: Address Validation can only be used in sessions with
+            the Autocomplete (New) API, not the old Autocomplete API.
+            See
+            https://developers.google.com/maps/documentation/places/web-service/session-pricing
+            for more details.
     """
 
     address: postal_address_pb2.PostalAddress = proto.Field(
@@ -101,6 +127,10 @@ class ValidateAddressRequest(proto.Message):
     enable_usps_cass: bool = proto.Field(
         proto.BOOL,
         number=3,
+    )
+    session_token: str = proto.Field(
+        proto.STRING,
+        number=5,
     )
 
 
@@ -149,6 +179,27 @@ class ProvideValidationFeedbackRequest(proto.Message):
     class ValidationConclusion(proto.Enum):
         r"""The possible final outcomes of the sequence of address
         validation requests needed to validate an address.
+
+        Values:
+            VALIDATION_CONCLUSION_UNSPECIFIED (0):
+                This value is unused. If the
+                ``ProvideValidationFeedbackRequest.conclusion`` field is set
+                to ``VALIDATION_CONCLUSION_UNSPECIFIED``, an
+                ``INVALID_ARGUMENT`` error will be returned.
+            VALIDATED_VERSION_USED (1):
+                The version of the address returned by the
+                Address Validation API was used for the
+                transaction.
+            USER_VERSION_USED (2):
+                The version of the address provided by the
+                user was used for the transaction
+            UNVALIDATED_VERSION_USED (3):
+                A version of the address that was entered
+                after the last validation attempt but that was
+                not re-validated was used for the transaction.
+            UNUSED (4):
+                The transaction was abandoned and the address
+                was not used.
         """
         VALIDATION_CONCLUSION_UNSPECIFIED = 0
         VALIDATED_VERSION_USED = 1
@@ -169,6 +220,7 @@ class ProvideValidationFeedbackRequest(proto.Message):
 
 class ProvideValidationFeedbackResponse(proto.Message):
     r"""The response for validation feedback.
+
     The response is empty if the feedback is sent successfully.
 
     """
@@ -187,7 +239,9 @@ class ValidationResult(proto.Message):
             Information about the location and place that
             the address geocoded to.
         metadata (google.maps.addressvalidation_v1.types.AddressMetadata):
-            Other information relevant to deliverability.
+            Other information relevant to deliverability. ``metadata``
+            is not guaranteed to be fully populated for every address
+            sent to the Address Validation API.
         usps_data (google.maps.addressvalidation_v1.types.UspsData):
             Extra deliverability flags provided by USPS. Only provided
             in region ``US`` and ``PR``.
@@ -293,6 +347,28 @@ class Verdict(proto.Message):
         However, if we are unable to find a geocode for "123 Main Street" in
         Redwood City, the geocode returned might be of ``LOCALITY``
         granularity even though the address is more granular.
+
+        Values:
+            GRANULARITY_UNSPECIFIED (0):
+                Default value. This value is unused.
+            SUB_PREMISE (1):
+                Below-building level result, such as an
+                apartment.
+            PREMISE (2):
+                Building-level result.
+            PREMISE_PROXIMITY (3):
+                A geocode that approximates the
+                building-level location of the address.
+            BLOCK (4):
+                The address or geocode indicates a block.
+                Only used in regions which have block-level
+                addressing, such as Japan.
+            ROUTE (5):
+                The geocode or address is granular to route,
+                such as a street, road, or highway.
+            OTHER (6):
+                All other granularities, which are bucketed
+                together since they are not deliverable.
         """
         GRANULARITY_UNSPECIFIED = 0
         SUB_PREMISE = 1

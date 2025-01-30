@@ -17,9 +17,19 @@ set -e
 function save_to_temp_then_file() {
     TEMP_FILE="$(echo mktemp)"
     # Redirect output to temporary file TEMP_FILE
-    cat > TEMP_FILE
+    cat > $TEMP_FILE
     # Replace the original file
-    mv -f TEMP_FILE "${1}"
+    mv -f $TEMP_FILE "${1}"
+}
+
+# replace_prefix STR FROM_PREFIX TO_PREFIX
+# Echoes STR with any leading prefix FROM_PREFIX replaced by TO_PREFIX.
+function replace_prefix () {
+  local STR="$1"
+  local PREFIX_FROM="$2"
+  local PREFIX_TO="$3"
+  local STEM=${STR#${PREFIX_FROM}}
+  [[ "${STR}" == "${STEM}" ]] && echo "${STR}" || echo "${PREFIX_TO}${STEM}"
 }
 
 
@@ -36,8 +46,8 @@ cd "$WORKSPACE_DIR/$MONO_REPO_NAME/containers/python-bootstrap-container"
 API_VERSION="$(echo $API_ID | sed 's/.*\.//')"
 
 # API_ID has the form google.cloud.*.vX or `google.*.*.vX`
-# Replace `.`` with `-`
-FOLDER_NAME="$(echo $API_ID | sed -E 's/\./-/g')"
+# It forms the basis for FOLDER_NAME, which will be further modified in what follows.
+FOLDER_NAME="${API_ID}"
 
 # if API_VERSION does not contain numbers, set API_VERSION to empty string
 if [[ ! $API_VERSION =~ [0-9] ]]; then
@@ -46,8 +56,21 @@ else
     # Remove the trailing version from the FOLDER_NAME`
     # for `google.cloud.workflows.v1`
     # the folder should be `google-cloud-workflows`
-    FOLDER_NAME="$(echo $FOLDER_NAME | sed 's/-[^-]*$//')"
+    FOLDER_NAME="$(echo $FOLDER_NAME | sed 's@\.[^.]*$@@')"
 fi
+
+# The directory in googleapis/googleapis-gen to configure in .OwlBot.yaml.
+# Replace '.' with '/'
+API_PATH="$(echo ${FOLDER_NAME} | sed -E 's@\.@/@g')"
+
+# Replace `.`` with `-`
+FOLDER_NAME="$(echo ${FOLDER_NAME} | sed -E 's/\./-/g')"
+
+# Since we map protobuf packages google.protobuf.* to Python packages
+# google.cloud.* (see
+# https://github.com/googleapis/gapic-generator-python/issues/1899), ensure that
+# that the PyPI package name reflects the Python package structure.
+FOLDER_NAME="$(replace_prefix "${FOLDER_NAME}" google-api- google-cloud- )"
 
 # Create the folder
 mkdir -p "$WORKSPACE_DIR/$MONO_REPO_NAME/packages/$FOLDER_NAME"
@@ -67,8 +90,6 @@ else
     # Otherwise copy the templated .OwlBot.yaml
     cp ".OwlBot.yaml" "${WORKSPACE_DIR}/${MONO_REPO_NAME}/packages/${FOLDER_NAME}/.OwlBot.yaml"
 fi
-
-API_PATH="$(echo $FOLDER_NAME | sed -E 's/\-/\//g')"
 
 # Update apiPath in .OwlBot.yaml 
 sed -i -e "s|apiPath|$API_PATH|" "${WORKSPACE_DIR}/${MONO_REPO_NAME}/packages/${FOLDER_NAME}/.OwlBot.yaml"
@@ -101,16 +122,30 @@ DOCS_ROOT_URL=$(jq --arg API_SHORTNAME "$API_SHORTNAME" -r '.apis | to_entries[]
 # Build the docs URL if DOCS_ROOT_URL is not empty
 # If API_VERSION is empty
 if [[ -n $DOCS_ROOT_URL ]]; then
-    DOCS_URL="$(echo https://$DOCS_ROOT_URL)"
+    PRODUCT_DOCS_URL="$(echo https://$DOCS_ROOT_URL)"
 else
-    DOCS_URL=""
+    PRODUCT_DOCS_URL=""
 fi
 
 # Update apiProductDocumentation in .repo-metadata.json
-sed -i -e "s|apiProductDocumentation|$DOCS_URL|" "${WORKSPACE_DIR}/${MONO_REPO_NAME}/packages/${FOLDER_NAME}/.repo-metadata.json"
+sed -i -e "s|apiProductDocumentation|$PRODUCT_DOCS_URL|" "${WORKSPACE_DIR}/${MONO_REPO_NAME}/packages/${FOLDER_NAME}/.repo-metadata.json"
+
+# If the API is `cloud`, the docs will be published to `cloud.google.com`.
+# For non-cloud, the docs will be published to `googleapis.dev`.
+if [[ $FOLDER_NAME =~ "cloud" ]]; then
+    CLIENT_DOCS_URL="https://cloud.google.com/python/docs/reference/$FOLDER_NAME/latest"
+else
+    CLIENT_DOCS_URL="https://googleapis.dev/python/$FOLDER_NAME/latest"
+fi
+
+# Update clientDocumentation in .repo-metadata.json
+sed -i -e "s|clientDocumentation|$CLIENT_DOCS_URL|" "${WORKSPACE_DIR}/${MONO_REPO_NAME}/packages/${FOLDER_NAME}/.repo-metadata.json"
 
 # Update apiPackage in .repo-metadata.json
 sed -i -e "s|apiPackage|$FOLDER_NAME|" "${WORKSPACE_DIR}/${MONO_REPO_NAME}/packages/${FOLDER_NAME}/.repo-metadata.json"
+
+# Update apiPackage in .OwlBot.yaml
+sed -i -e "s|apiPackage|$FOLDER_NAME|" "${WORKSPACE_DIR}/${MONO_REPO_NAME}/packages/${FOLDER_NAME}/.OwlBot.yaml"
 
 # If API_VERSION is not empty
 if [[ -n $API_VERSION ]]; then

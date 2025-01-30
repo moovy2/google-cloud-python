@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.iam.v1 import policy_pb2  # type: ignore
@@ -102,10 +104,25 @@ class Rule(proto.Message):
     """
 
     class TriggerType(proto.Enum):
-        r""""""
+        r"""The trigger types for actions.
+
+        Values:
+            UNKNOWN (0):
+                Trigger for unknown action.
+            ON_CREATE (1):
+                Trigger for create document action.
+            ON_UPDATE (4):
+                Trigger for update document action.
+            ON_CREATE_LINK (7):
+                Trigger for create link action.
+            ON_DELETE_LINK (8):
+                Trigger for delete link action.
+        """
         UNKNOWN = 0
         ON_CREATE = 1
         ON_UPDATE = 4
+        ON_CREATE_LINK = 7
+        ON_DELETE_LINK = 8
 
     description: str = proto.Field(
         proto.STRING,
@@ -239,7 +256,21 @@ class AccessControlAction(proto.Message):
     """
 
     class OperationType(proto.Enum):
-        r"""Type of ACL modification operation."""
+        r"""Type of ACL modification operation.
+
+        Values:
+            UNKNOWN (0):
+                The unknown operation type.
+            ADD_POLICY_BINDING (1):
+                Adds newly given policy bindings in the
+                existing bindings list.
+            REMOVE_POLICY_BINDING (2):
+                Removes newly given policy bindings from the
+                existing bindings list.
+            REPLACE_POLICY_BINDING (3):
+                Replaces existing policy bindings with the
+                given policy binding list
+        """
         UNKNOWN = 0
         ADD_POLICY_BINDING = 1
         REMOVE_POLICY_BINDING = 2
@@ -515,7 +546,21 @@ class ActionOutput(proto.Message):
     """
 
     class State(proto.Enum):
-        r"""Represents execution state of the action."""
+        r"""Represents execution state of the action.
+
+        Values:
+            UNKNOWN (0):
+                The unknown state.
+            ACTION_SUCCEEDED (1):
+                State indicating action executed
+                successfully.
+            ACTION_FAILED (2):
+                State indicating action failed.
+            ACTION_TIMED_OUT (3):
+                State indicating action timed out.
+            ACTION_PENDING (4):
+                State indicating action is pending.
+        """
         UNKNOWN = 0
         ACTION_SUCCEEDED = 1
         ACTION_FAILED = 2

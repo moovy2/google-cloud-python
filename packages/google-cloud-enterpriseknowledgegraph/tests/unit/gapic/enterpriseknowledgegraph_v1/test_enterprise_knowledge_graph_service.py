@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,24 +22,12 @@ try:
 except ImportError:  # pragma: NO COVER
     import mock
 
-from collections.abc import Iterable
+from collections.abc import AsyncIterable, Iterable
 import json
 import math
 
-from google.api_core import gapic_v1, grpc_helpers, grpc_helpers_async, path_template
-from google.api_core import client_options
-from google.api_core import exceptions as core_exceptions
-import google.auth
-from google.auth import credentials as ga_credentials
-from google.auth.exceptions import MutualTLSChannelError
-from google.longrunning import operations_pb2
-from google.oauth2 import service_account
-from google.protobuf import any_pb2  # type: ignore
+from google.api_core import api_core_version
 from google.protobuf import json_format
-from google.protobuf import struct_pb2  # type: ignore
-from google.protobuf import timestamp_pb2  # type: ignore
-from google.protobuf import wrappers_pb2  # type: ignore
-from google.rpc import status_pb2  # type: ignore
 import grpc
 from grpc.experimental import aio
 from proto.marshal.rules import wrappers
@@ -47,6 +35,28 @@ from proto.marshal.rules.dates import DurationRule, TimestampRule
 import pytest
 from requests import PreparedRequest, Request, Response
 from requests.sessions import Session
+
+try:
+    from google.auth.aio import credentials as ga_credentials_async
+
+    HAS_GOOGLE_AUTH_AIO = True
+except ImportError:  # pragma: NO COVER
+    HAS_GOOGLE_AUTH_AIO = False
+
+from google.api_core import gapic_v1, grpc_helpers, grpc_helpers_async, path_template
+from google.api_core import client_options
+from google.api_core import exceptions as core_exceptions
+from google.api_core import retry as retries
+import google.auth
+from google.auth import credentials as ga_credentials
+from google.auth.exceptions import MutualTLSChannelError
+from google.longrunning import operations_pb2  # type: ignore
+from google.oauth2 import service_account
+from google.protobuf import any_pb2  # type: ignore
+from google.protobuf import struct_pb2  # type: ignore
+from google.protobuf import timestamp_pb2  # type: ignore
+from google.protobuf import wrappers_pb2  # type: ignore
+from google.rpc import status_pb2  # type: ignore
 
 from google.cloud.enterpriseknowledgegraph_v1.services.enterprise_knowledge_graph_service import (
     EnterpriseKnowledgeGraphServiceAsyncClient,
@@ -57,8 +67,22 @@ from google.cloud.enterpriseknowledgegraph_v1.services.enterprise_knowledge_grap
 from google.cloud.enterpriseknowledgegraph_v1.types import job_state, service
 
 
+async def mock_async_gen(data, chunk_size=1):
+    for i in range(0, len(data)):  # pragma: NO COVER
+        chunk = data[i : i + chunk_size]
+        yield chunk.encode("utf-8")
+
+
 def client_cert_source_callback():
     return b"cert bytes", b"key bytes"
+
+
+# TODO: use async auth anon credentials by default once the minimum version of google-auth is upgraded.
+# See related issue: https://github.com/googleapis/gapic-generator-python/issues/2107.
+def async_anonymous_credentials():
+    if HAS_GOOGLE_AUTH_AIO:
+        return ga_credentials_async.AnonymousCredentials()
+    return ga_credentials.AnonymousCredentials()
 
 
 # If default endpoint is localhost, then default mtls endpoint will be the same.
@@ -69,6 +93,17 @@ def modify_default_endpoint(client):
         "foo.googleapis.com"
         if ("localhost" in client.DEFAULT_ENDPOINT)
         else client.DEFAULT_ENDPOINT
+    )
+
+
+# If default endpoint template is localhost, then default mtls endpoint will be the same.
+# This method modifies the default endpoint template so the client can produce a different
+# mtls endpoint for endpoint testing purposes.
+def modify_default_endpoint_template(client):
+    return (
+        "test.{UNIVERSE_DOMAIN}"
+        if ("localhost" in client._DEFAULT_ENDPOINT_TEMPLATE)
+        else client._DEFAULT_ENDPOINT_TEMPLATE
     )
 
 
@@ -108,6 +143,221 @@ def test__get_default_mtls_endpoint():
         EnterpriseKnowledgeGraphServiceClient._get_default_mtls_endpoint(non_googleapi)
         == non_googleapi
     )
+
+
+def test__read_environment_variables():
+    assert EnterpriseKnowledgeGraphServiceClient._read_environment_variables() == (
+        False,
+        "auto",
+        None,
+    )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "true"}):
+        assert EnterpriseKnowledgeGraphServiceClient._read_environment_variables() == (
+            True,
+            "auto",
+            None,
+        )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "false"}):
+        assert EnterpriseKnowledgeGraphServiceClient._read_environment_variables() == (
+            False,
+            "auto",
+            None,
+        )
+
+    with mock.patch.dict(
+        os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "Unsupported"}
+    ):
+        with pytest.raises(ValueError) as excinfo:
+            EnterpriseKnowledgeGraphServiceClient._read_environment_variables()
+    assert (
+        str(excinfo.value)
+        == "Environment variable `GOOGLE_API_USE_CLIENT_CERTIFICATE` must be either `true` or `false`"
+    )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "never"}):
+        assert EnterpriseKnowledgeGraphServiceClient._read_environment_variables() == (
+            False,
+            "never",
+            None,
+        )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "always"}):
+        assert EnterpriseKnowledgeGraphServiceClient._read_environment_variables() == (
+            False,
+            "always",
+            None,
+        )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "auto"}):
+        assert EnterpriseKnowledgeGraphServiceClient._read_environment_variables() == (
+            False,
+            "auto",
+            None,
+        )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "Unsupported"}):
+        with pytest.raises(MutualTLSChannelError) as excinfo:
+            EnterpriseKnowledgeGraphServiceClient._read_environment_variables()
+    assert (
+        str(excinfo.value)
+        == "Environment variable `GOOGLE_API_USE_MTLS_ENDPOINT` must be `never`, `auto` or `always`"
+    )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_CLOUD_UNIVERSE_DOMAIN": "foo.com"}):
+        assert EnterpriseKnowledgeGraphServiceClient._read_environment_variables() == (
+            False,
+            "auto",
+            "foo.com",
+        )
+
+
+def test__get_client_cert_source():
+    mock_provided_cert_source = mock.Mock()
+    mock_default_cert_source = mock.Mock()
+
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_client_cert_source(None, False)
+        is None
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_client_cert_source(
+            mock_provided_cert_source, False
+        )
+        is None
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_client_cert_source(
+            mock_provided_cert_source, True
+        )
+        == mock_provided_cert_source
+    )
+
+    with mock.patch(
+        "google.auth.transport.mtls.has_default_client_cert_source", return_value=True
+    ):
+        with mock.patch(
+            "google.auth.transport.mtls.default_client_cert_source",
+            return_value=mock_default_cert_source,
+        ):
+            assert (
+                EnterpriseKnowledgeGraphServiceClient._get_client_cert_source(
+                    None, True
+                )
+                is mock_default_cert_source
+            )
+            assert (
+                EnterpriseKnowledgeGraphServiceClient._get_client_cert_source(
+                    mock_provided_cert_source, "true"
+                )
+                is mock_provided_cert_source
+            )
+
+
+@mock.patch.object(
+    EnterpriseKnowledgeGraphServiceClient,
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(EnterpriseKnowledgeGraphServiceClient),
+)
+@mock.patch.object(
+    EnterpriseKnowledgeGraphServiceAsyncClient,
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(EnterpriseKnowledgeGraphServiceAsyncClient),
+)
+def test__get_api_endpoint():
+    api_override = "foo.com"
+    mock_client_cert_source = mock.Mock()
+    default_universe = EnterpriseKnowledgeGraphServiceClient._DEFAULT_UNIVERSE
+    default_endpoint = (
+        EnterpriseKnowledgeGraphServiceClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+            UNIVERSE_DOMAIN=default_universe
+        )
+    )
+    mock_universe = "bar.com"
+    mock_endpoint = (
+        EnterpriseKnowledgeGraphServiceClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+            UNIVERSE_DOMAIN=mock_universe
+        )
+    )
+
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_api_endpoint(
+            api_override, mock_client_cert_source, default_universe, "always"
+        )
+        == api_override
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_api_endpoint(
+            None, mock_client_cert_source, default_universe, "auto"
+        )
+        == EnterpriseKnowledgeGraphServiceClient.DEFAULT_MTLS_ENDPOINT
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_api_endpoint(
+            None, None, default_universe, "auto"
+        )
+        == default_endpoint
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_api_endpoint(
+            None, None, default_universe, "always"
+        )
+        == EnterpriseKnowledgeGraphServiceClient.DEFAULT_MTLS_ENDPOINT
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_api_endpoint(
+            None, mock_client_cert_source, default_universe, "always"
+        )
+        == EnterpriseKnowledgeGraphServiceClient.DEFAULT_MTLS_ENDPOINT
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_api_endpoint(
+            None, None, mock_universe, "never"
+        )
+        == mock_endpoint
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_api_endpoint(
+            None, None, default_universe, "never"
+        )
+        == default_endpoint
+    )
+
+    with pytest.raises(MutualTLSChannelError) as excinfo:
+        EnterpriseKnowledgeGraphServiceClient._get_api_endpoint(
+            None, mock_client_cert_source, mock_universe, "auto"
+        )
+    assert (
+        str(excinfo.value)
+        == "mTLS is not supported in any universe other than googleapis.com."
+    )
+
+
+def test__get_universe_domain():
+    client_universe_domain = "foo.com"
+    universe_domain_env = "bar.com"
+
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_universe_domain(
+            client_universe_domain, universe_domain_env
+        )
+        == client_universe_domain
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_universe_domain(
+            None, universe_domain_env
+        )
+        == universe_domain_env
+    )
+    assert (
+        EnterpriseKnowledgeGraphServiceClient._get_universe_domain(None, None)
+        == EnterpriseKnowledgeGraphServiceClient._DEFAULT_UNIVERSE
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        EnterpriseKnowledgeGraphServiceClient._get_universe_domain("", None)
+    assert str(excinfo.value) == "Universe Domain cannot be an empty string."
 
 
 @pytest.mark.parametrize(
@@ -236,13 +486,13 @@ def test_enterprise_knowledge_graph_service_client_get_transport_class():
 )
 @mock.patch.object(
     EnterpriseKnowledgeGraphServiceClient,
-    "DEFAULT_ENDPOINT",
-    modify_default_endpoint(EnterpriseKnowledgeGraphServiceClient),
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(EnterpriseKnowledgeGraphServiceClient),
 )
 @mock.patch.object(
     EnterpriseKnowledgeGraphServiceAsyncClient,
-    "DEFAULT_ENDPOINT",
-    modify_default_endpoint(EnterpriseKnowledgeGraphServiceAsyncClient),
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(EnterpriseKnowledgeGraphServiceAsyncClient),
 )
 def test_enterprise_knowledge_graph_service_client_client_options(
     client_class, transport_class, transport_name
@@ -288,7 +538,9 @@ def test_enterprise_knowledge_graph_service_client_client_options(
             patched.assert_called_once_with(
                 credentials=None,
                 credentials_file=None,
-                host=client.DEFAULT_ENDPOINT,
+                host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                    UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                ),
                 scopes=None,
                 client_cert_source_for_mtls=None,
                 quota_project_id=None,
@@ -318,15 +570,23 @@ def test_enterprise_knowledge_graph_service_client_client_options(
     # Check the case api_endpoint is not provided and GOOGLE_API_USE_MTLS_ENDPOINT has
     # unsupported value.
     with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "Unsupported"}):
-        with pytest.raises(MutualTLSChannelError):
+        with pytest.raises(MutualTLSChannelError) as excinfo:
             client = client_class(transport=transport_name)
+    assert (
+        str(excinfo.value)
+        == "Environment variable `GOOGLE_API_USE_MTLS_ENDPOINT` must be `never`, `auto` or `always`"
+    )
 
     # Check the case GOOGLE_API_USE_CLIENT_CERTIFICATE has unsupported value.
     with mock.patch.dict(
         os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "Unsupported"}
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as excinfo:
             client = client_class(transport=transport_name)
+    assert (
+        str(excinfo.value)
+        == "Environment variable `GOOGLE_API_USE_CLIENT_CERTIFICATE` must be either `true` or `false`"
+    )
 
     # Check the case quota_project_id is provided
     options = client_options.ClientOptions(quota_project_id="octopus")
@@ -336,7 +596,9 @@ def test_enterprise_knowledge_graph_service_client_client_options(
         patched.assert_called_once_with(
             credentials=None,
             credentials_file=None,
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=None,
             client_cert_source_for_mtls=None,
             quota_project_id="octopus",
@@ -354,7 +616,9 @@ def test_enterprise_knowledge_graph_service_client_client_options(
         patched.assert_called_once_with(
             credentials=None,
             credentials_file=None,
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=None,
             client_cert_source_for_mtls=None,
             quota_project_id=None,
@@ -407,13 +671,13 @@ def test_enterprise_knowledge_graph_service_client_client_options(
 )
 @mock.patch.object(
     EnterpriseKnowledgeGraphServiceClient,
-    "DEFAULT_ENDPOINT",
-    modify_default_endpoint(EnterpriseKnowledgeGraphServiceClient),
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(EnterpriseKnowledgeGraphServiceClient),
 )
 @mock.patch.object(
     EnterpriseKnowledgeGraphServiceAsyncClient,
-    "DEFAULT_ENDPOINT",
-    modify_default_endpoint(EnterpriseKnowledgeGraphServiceAsyncClient),
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(EnterpriseKnowledgeGraphServiceAsyncClient),
 )
 @mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "auto"})
 def test_enterprise_knowledge_graph_service_client_mtls_env_auto(
@@ -436,7 +700,9 @@ def test_enterprise_knowledge_graph_service_client_mtls_env_auto(
 
             if use_client_cert_env == "false":
                 expected_client_cert_source = None
-                expected_host = client.DEFAULT_ENDPOINT
+                expected_host = client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                    UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                )
             else:
                 expected_client_cert_source = client_cert_source_callback
                 expected_host = client.DEFAULT_MTLS_ENDPOINT
@@ -468,7 +734,9 @@ def test_enterprise_knowledge_graph_service_client_mtls_env_auto(
                     return_value=client_cert_source_callback,
                 ):
                     if use_client_cert_env == "false":
-                        expected_host = client.DEFAULT_ENDPOINT
+                        expected_host = client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                            UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                        )
                         expected_client_cert_source = None
                     else:
                         expected_host = client.DEFAULT_MTLS_ENDPOINT
@@ -502,7 +770,9 @@ def test_enterprise_knowledge_graph_service_client_mtls_env_auto(
                 patched.assert_called_once_with(
                     credentials=None,
                     credentials_file=None,
-                    host=client.DEFAULT_ENDPOINT,
+                    host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                        UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                    ),
                     scopes=None,
                     client_cert_source_for_mtls=None,
                     quota_project_id=None,
@@ -595,6 +865,120 @@ def test_enterprise_knowledge_graph_service_client_get_mtls_endpoint_and_cert_so
                 assert api_endpoint == client_class.DEFAULT_MTLS_ENDPOINT
                 assert cert_source == mock_client_cert_source
 
+    # Check the case api_endpoint is not provided and GOOGLE_API_USE_MTLS_ENDPOINT has
+    # unsupported value.
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "Unsupported"}):
+        with pytest.raises(MutualTLSChannelError) as excinfo:
+            client_class.get_mtls_endpoint_and_cert_source()
+
+        assert (
+            str(excinfo.value)
+            == "Environment variable `GOOGLE_API_USE_MTLS_ENDPOINT` must be `never`, `auto` or `always`"
+        )
+
+    # Check the case GOOGLE_API_USE_CLIENT_CERTIFICATE has unsupported value.
+    with mock.patch.dict(
+        os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "Unsupported"}
+    ):
+        with pytest.raises(ValueError) as excinfo:
+            client_class.get_mtls_endpoint_and_cert_source()
+
+        assert (
+            str(excinfo.value)
+            == "Environment variable `GOOGLE_API_USE_CLIENT_CERTIFICATE` must be either `true` or `false`"
+        )
+
+
+@pytest.mark.parametrize(
+    "client_class",
+    [EnterpriseKnowledgeGraphServiceClient, EnterpriseKnowledgeGraphServiceAsyncClient],
+)
+@mock.patch.object(
+    EnterpriseKnowledgeGraphServiceClient,
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(EnterpriseKnowledgeGraphServiceClient),
+)
+@mock.patch.object(
+    EnterpriseKnowledgeGraphServiceAsyncClient,
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(EnterpriseKnowledgeGraphServiceAsyncClient),
+)
+def test_enterprise_knowledge_graph_service_client_client_api_endpoint(client_class):
+    mock_client_cert_source = client_cert_source_callback
+    api_override = "foo.com"
+    default_universe = EnterpriseKnowledgeGraphServiceClient._DEFAULT_UNIVERSE
+    default_endpoint = (
+        EnterpriseKnowledgeGraphServiceClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+            UNIVERSE_DOMAIN=default_universe
+        )
+    )
+    mock_universe = "bar.com"
+    mock_endpoint = (
+        EnterpriseKnowledgeGraphServiceClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+            UNIVERSE_DOMAIN=mock_universe
+        )
+    )
+
+    # If ClientOptions.api_endpoint is set and GOOGLE_API_USE_CLIENT_CERTIFICATE="true",
+    # use ClientOptions.api_endpoint as the api endpoint regardless.
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "true"}):
+        with mock.patch(
+            "google.auth.transport.requests.AuthorizedSession.configure_mtls_channel"
+        ):
+            options = client_options.ClientOptions(
+                client_cert_source=mock_client_cert_source, api_endpoint=api_override
+            )
+            client = client_class(
+                client_options=options,
+                credentials=ga_credentials.AnonymousCredentials(),
+            )
+            assert client.api_endpoint == api_override
+
+    # If ClientOptions.api_endpoint is not set and GOOGLE_API_USE_MTLS_ENDPOINT="never",
+    # use the _DEFAULT_ENDPOINT_TEMPLATE populated with GDU as the api endpoint.
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "never"}):
+        client = client_class(credentials=ga_credentials.AnonymousCredentials())
+        assert client.api_endpoint == default_endpoint
+
+    # If ClientOptions.api_endpoint is not set and GOOGLE_API_USE_MTLS_ENDPOINT="always",
+    # use the DEFAULT_MTLS_ENDPOINT as the api endpoint.
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "always"}):
+        client = client_class(credentials=ga_credentials.AnonymousCredentials())
+        assert client.api_endpoint == client_class.DEFAULT_MTLS_ENDPOINT
+
+    # If ClientOptions.api_endpoint is not set, GOOGLE_API_USE_MTLS_ENDPOINT="auto" (default),
+    # GOOGLE_API_USE_CLIENT_CERTIFICATE="false" (default), default cert source doesn't exist,
+    # and ClientOptions.universe_domain="bar.com",
+    # use the _DEFAULT_ENDPOINT_TEMPLATE populated with universe domain as the api endpoint.
+    options = client_options.ClientOptions()
+    universe_exists = hasattr(options, "universe_domain")
+    if universe_exists:
+        options = client_options.ClientOptions(universe_domain=mock_universe)
+        client = client_class(
+            client_options=options, credentials=ga_credentials.AnonymousCredentials()
+        )
+    else:
+        client = client_class(
+            client_options=options, credentials=ga_credentials.AnonymousCredentials()
+        )
+    assert client.api_endpoint == (
+        mock_endpoint if universe_exists else default_endpoint
+    )
+    assert client.universe_domain == (
+        mock_universe if universe_exists else default_universe
+    )
+
+    # If ClientOptions does not have a universe domain attribute and GOOGLE_API_USE_MTLS_ENDPOINT="never",
+    # use the _DEFAULT_ENDPOINT_TEMPLATE populated with GDU as the api endpoint.
+    options = client_options.ClientOptions()
+    if hasattr(options, "universe_domain"):
+        delattr(options, "universe_domain")
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "never"}):
+        client = client_class(
+            client_options=options, credentials=ga_credentials.AnonymousCredentials()
+        )
+        assert client.api_endpoint == default_endpoint
+
 
 @pytest.mark.parametrize(
     "client_class,transport_class,transport_name",
@@ -629,7 +1013,9 @@ def test_enterprise_knowledge_graph_service_client_client_options_scopes(
         patched.assert_called_once_with(
             credentials=None,
             credentials_file=None,
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=["1", "2"],
             client_cert_source_for_mtls=None,
             quota_project_id=None,
@@ -674,7 +1060,9 @@ def test_enterprise_knowledge_graph_service_client_client_options_credentials_fi
         patched.assert_called_once_with(
             credentials=None,
             credentials_file="credentials.json",
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=None,
             client_cert_source_for_mtls=None,
             quota_project_id=None,
@@ -734,7 +1122,9 @@ def test_enterprise_knowledge_graph_service_client_create_channel_credentials_fi
         patched.assert_called_once_with(
             credentials=None,
             credentials_file="credentials.json",
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=None,
             client_cert_source_for_mtls=None,
             quota_project_id=None,
@@ -803,7 +1193,8 @@ def test_create_entity_reconciliation_job(request_type, transport: str = "grpc")
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.CreateEntityReconciliationJobRequest()
+        request = service.CreateEntityReconciliationJobRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.EntityReconciliationJob)
@@ -811,22 +1202,116 @@ def test_create_entity_reconciliation_job(request_type, transport: str = "grpc")
     assert response.state == job_state.JobState.JOB_STATE_PENDING
 
 
-def test_create_entity_reconciliation_job_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_create_entity_reconciliation_job_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
+    )
+
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.CreateEntityReconciliationJobRequest(
+        parent="parent_value",
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(
         type(client.transport.create_entity_reconciliation_job), "__call__"
     ) as call:
-        client.create_entity_reconciliation_job()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.create_entity_reconciliation_job(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.CreateEntityReconciliationJobRequest()
+        assert args[0] == service.CreateEntityReconciliationJobRequest(
+            parent="parent_value",
+        )
+
+
+def test_create_entity_reconciliation_job_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._transport.create_entity_reconciliation_job
+            in client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.create_entity_reconciliation_job
+        ] = mock_rpc
+        request = {}
+        client.create_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.create_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_create_entity_reconciliation_job_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.create_entity_reconciliation_job
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.create_entity_reconciliation_job
+        ] = mock_rpc
+
+        request = {}
+        await client.create_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.create_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -835,7 +1320,7 @@ async def test_create_entity_reconciliation_job_async(
     request_type=service.CreateEntityReconciliationJobRequest,
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -859,7 +1344,8 @@ async def test_create_entity_reconciliation_job_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.CreateEntityReconciliationJobRequest()
+        request = service.CreateEntityReconciliationJobRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.EntityReconciliationJob)
@@ -906,7 +1392,7 @@ def test_create_entity_reconciliation_job_field_headers():
 @pytest.mark.asyncio
 async def test_create_entity_reconciliation_job_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -989,7 +1475,7 @@ def test_create_entity_reconciliation_job_flattened_error():
 @pytest.mark.asyncio
 async def test_create_entity_reconciliation_job_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -1026,7 +1512,7 @@ async def test_create_entity_reconciliation_job_flattened_async():
 @pytest.mark.asyncio
 async def test_create_entity_reconciliation_job_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -1072,7 +1558,8 @@ def test_get_entity_reconciliation_job(request_type, transport: str = "grpc"):
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.GetEntityReconciliationJobRequest()
+        request = service.GetEntityReconciliationJobRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.EntityReconciliationJob)
@@ -1080,22 +1567,116 @@ def test_get_entity_reconciliation_job(request_type, transport: str = "grpc"):
     assert response.state == job_state.JobState.JOB_STATE_PENDING
 
 
-def test_get_entity_reconciliation_job_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_get_entity_reconciliation_job_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
+    )
+
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.GetEntityReconciliationJobRequest(
+        name="name_value",
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(
         type(client.transport.get_entity_reconciliation_job), "__call__"
     ) as call:
-        client.get_entity_reconciliation_job()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.get_entity_reconciliation_job(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.GetEntityReconciliationJobRequest()
+        assert args[0] == service.GetEntityReconciliationJobRequest(
+            name="name_value",
+        )
+
+
+def test_get_entity_reconciliation_job_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._transport.get_entity_reconciliation_job
+            in client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.get_entity_reconciliation_job
+        ] = mock_rpc
+        request = {}
+        client.get_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.get_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_get_entity_reconciliation_job_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.get_entity_reconciliation_job
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.get_entity_reconciliation_job
+        ] = mock_rpc
+
+        request = {}
+        await client.get_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.get_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -1104,7 +1685,7 @@ async def test_get_entity_reconciliation_job_async(
     request_type=service.GetEntityReconciliationJobRequest,
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -1128,7 +1709,8 @@ async def test_get_entity_reconciliation_job_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.GetEntityReconciliationJobRequest()
+        request = service.GetEntityReconciliationJobRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.EntityReconciliationJob)
@@ -1175,7 +1757,7 @@ def test_get_entity_reconciliation_job_field_headers():
 @pytest.mark.asyncio
 async def test_get_entity_reconciliation_job_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -1249,7 +1831,7 @@ def test_get_entity_reconciliation_job_flattened_error():
 @pytest.mark.asyncio
 async def test_get_entity_reconciliation_job_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -1280,7 +1862,7 @@ async def test_get_entity_reconciliation_job_flattened_async():
 @pytest.mark.asyncio
 async def test_get_entity_reconciliation_job_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -1322,29 +1904,128 @@ def test_list_entity_reconciliation_jobs(request_type, transport: str = "grpc"):
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.ListEntityReconciliationJobsRequest()
+        request = service.ListEntityReconciliationJobsRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, pagers.ListEntityReconciliationJobsPager)
     assert response.next_page_token == "next_page_token_value"
 
 
-def test_list_entity_reconciliation_jobs_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_list_entity_reconciliation_jobs_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
+    )
+
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.ListEntityReconciliationJobsRequest(
+        parent="parent_value",
+        filter="filter_value",
+        page_token="page_token_value",
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(
         type(client.transport.list_entity_reconciliation_jobs), "__call__"
     ) as call:
-        client.list_entity_reconciliation_jobs()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.list_entity_reconciliation_jobs(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.ListEntityReconciliationJobsRequest()
+        assert args[0] == service.ListEntityReconciliationJobsRequest(
+            parent="parent_value",
+            filter="filter_value",
+            page_token="page_token_value",
+        )
+
+
+def test_list_entity_reconciliation_jobs_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._transport.list_entity_reconciliation_jobs
+            in client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.list_entity_reconciliation_jobs
+        ] = mock_rpc
+        request = {}
+        client.list_entity_reconciliation_jobs(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.list_entity_reconciliation_jobs(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_list_entity_reconciliation_jobs_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.list_entity_reconciliation_jobs
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.list_entity_reconciliation_jobs
+        ] = mock_rpc
+
+        request = {}
+        await client.list_entity_reconciliation_jobs(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.list_entity_reconciliation_jobs(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -1353,7 +2034,7 @@ async def test_list_entity_reconciliation_jobs_async(
     request_type=service.ListEntityReconciliationJobsRequest,
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -1376,7 +2057,8 @@ async def test_list_entity_reconciliation_jobs_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.ListEntityReconciliationJobsRequest()
+        request = service.ListEntityReconciliationJobsRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, pagers.ListEntityReconciliationJobsAsyncPager)
@@ -1422,7 +2104,7 @@ def test_list_entity_reconciliation_jobs_field_headers():
 @pytest.mark.asyncio
 async def test_list_entity_reconciliation_jobs_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -1496,7 +2178,7 @@ def test_list_entity_reconciliation_jobs_flattened_error():
 @pytest.mark.asyncio
 async def test_list_entity_reconciliation_jobs_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -1527,7 +2209,7 @@ async def test_list_entity_reconciliation_jobs_flattened_async():
 @pytest.mark.asyncio
 async def test_list_entity_reconciliation_jobs_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -1541,7 +2223,7 @@ async def test_list_entity_reconciliation_jobs_flattened_error_async():
 
 def test_list_entity_reconciliation_jobs_pager(transport_name: str = "grpc"):
     client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials,
+        credentials=ga_credentials.AnonymousCredentials(),
         transport=transport_name,
     )
 
@@ -1578,13 +2260,19 @@ def test_list_entity_reconciliation_jobs_pager(transport_name: str = "grpc"):
             RuntimeError,
         )
 
-        metadata = ()
-        metadata = tuple(metadata) + (
+        expected_metadata = ()
+        retry = retries.Retry()
+        timeout = 5
+        expected_metadata = tuple(expected_metadata) + (
             gapic_v1.routing_header.to_grpc_metadata((("parent", ""),)),
         )
-        pager = client.list_entity_reconciliation_jobs(request={})
+        pager = client.list_entity_reconciliation_jobs(
+            request={}, retry=retry, timeout=timeout
+        )
 
-        assert pager._metadata == metadata
+        assert pager._metadata == expected_metadata
+        assert pager._retry == retry
+        assert pager._timeout == timeout
 
         results = list(pager)
         assert len(results) == 6
@@ -1593,7 +2281,7 @@ def test_list_entity_reconciliation_jobs_pager(transport_name: str = "grpc"):
 
 def test_list_entity_reconciliation_jobs_pages(transport_name: str = "grpc"):
     client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials,
+        credentials=ga_credentials.AnonymousCredentials(),
         transport=transport_name,
     )
 
@@ -1637,7 +2325,7 @@ def test_list_entity_reconciliation_jobs_pages(transport_name: str = "grpc"):
 @pytest.mark.asyncio
 async def test_list_entity_reconciliation_jobs_async_pager():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials,
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -1689,7 +2377,7 @@ async def test_list_entity_reconciliation_jobs_async_pager():
 @pytest.mark.asyncio
 async def test_list_entity_reconciliation_jobs_async_pages():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials,
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -1727,9 +2415,11 @@ async def test_list_entity_reconciliation_jobs_async_pages():
             RuntimeError,
         )
         pages = []
-        async for page_ in (
+        # Workaround issue in python 3.9 related to code coverage by adding `# pragma: no branch`
+        # See https://github.com/googleapis/gapic-generator-python/pull/1174#issuecomment-1025132372
+        async for page_ in (  # pragma: no branch
             await client.list_entity_reconciliation_jobs(request={})
-        ).pages:  # pragma: no branch
+        ).pages:
             pages.append(page_)
         for page_, token in zip(pages, ["abc", "def", "ghi", ""]):
             assert page_.raw_page.next_page_token == token
@@ -1763,28 +2453,123 @@ def test_cancel_entity_reconciliation_job(request_type, transport: str = "grpc")
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.CancelEntityReconciliationJobRequest()
+        request = service.CancelEntityReconciliationJobRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert response is None
 
 
-def test_cancel_entity_reconciliation_job_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_cancel_entity_reconciliation_job_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
+    )
+
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.CancelEntityReconciliationJobRequest(
+        name="name_value",
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(
         type(client.transport.cancel_entity_reconciliation_job), "__call__"
     ) as call:
-        client.cancel_entity_reconciliation_job()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.cancel_entity_reconciliation_job(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.CancelEntityReconciliationJobRequest()
+        assert args[0] == service.CancelEntityReconciliationJobRequest(
+            name="name_value",
+        )
+
+
+def test_cancel_entity_reconciliation_job_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._transport.cancel_entity_reconciliation_job
+            in client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.cancel_entity_reconciliation_job
+        ] = mock_rpc
+        request = {}
+        client.cancel_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.cancel_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_cancel_entity_reconciliation_job_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.cancel_entity_reconciliation_job
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.cancel_entity_reconciliation_job
+        ] = mock_rpc
+
+        request = {}
+        await client.cancel_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.cancel_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -1793,7 +2578,7 @@ async def test_cancel_entity_reconciliation_job_async(
     request_type=service.CancelEntityReconciliationJobRequest,
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -1812,7 +2597,8 @@ async def test_cancel_entity_reconciliation_job_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.CancelEntityReconciliationJobRequest()
+        request = service.CancelEntityReconciliationJobRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert response is None
@@ -1857,7 +2643,7 @@ def test_cancel_entity_reconciliation_job_field_headers():
 @pytest.mark.asyncio
 async def test_cancel_entity_reconciliation_job_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -1929,7 +2715,7 @@ def test_cancel_entity_reconciliation_job_flattened_error():
 @pytest.mark.asyncio
 async def test_cancel_entity_reconciliation_job_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -1958,7 +2744,7 @@ async def test_cancel_entity_reconciliation_job_flattened_async():
 @pytest.mark.asyncio
 async def test_cancel_entity_reconciliation_job_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -1998,28 +2784,123 @@ def test_delete_entity_reconciliation_job(request_type, transport: str = "grpc")
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.DeleteEntityReconciliationJobRequest()
+        request = service.DeleteEntityReconciliationJobRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert response is None
 
 
-def test_delete_entity_reconciliation_job_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_delete_entity_reconciliation_job_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
+    )
+
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.DeleteEntityReconciliationJobRequest(
+        name="name_value",
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(
         type(client.transport.delete_entity_reconciliation_job), "__call__"
     ) as call:
-        client.delete_entity_reconciliation_job()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.delete_entity_reconciliation_job(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.DeleteEntityReconciliationJobRequest()
+        assert args[0] == service.DeleteEntityReconciliationJobRequest(
+            name="name_value",
+        )
+
+
+def test_delete_entity_reconciliation_job_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._transport.delete_entity_reconciliation_job
+            in client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.delete_entity_reconciliation_job
+        ] = mock_rpc
+        request = {}
+        client.delete_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.delete_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_delete_entity_reconciliation_job_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.delete_entity_reconciliation_job
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.delete_entity_reconciliation_job
+        ] = mock_rpc
+
+        request = {}
+        await client.delete_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.delete_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -2028,7 +2909,7 @@ async def test_delete_entity_reconciliation_job_async(
     request_type=service.DeleteEntityReconciliationJobRequest,
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -2047,7 +2928,8 @@ async def test_delete_entity_reconciliation_job_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.DeleteEntityReconciliationJobRequest()
+        request = service.DeleteEntityReconciliationJobRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert response is None
@@ -2092,7 +2974,7 @@ def test_delete_entity_reconciliation_job_field_headers():
 @pytest.mark.asyncio
 async def test_delete_entity_reconciliation_job_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -2164,7 +3046,7 @@ def test_delete_entity_reconciliation_job_flattened_error():
 @pytest.mark.asyncio
 async def test_delete_entity_reconciliation_job_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -2193,7 +3075,7 @@ async def test_delete_entity_reconciliation_job_flattened_async():
 @pytest.mark.asyncio
 async def test_delete_entity_reconciliation_job_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -2231,26 +3113,114 @@ def test_lookup(request_type, transport: str = "grpc"):
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.LookupRequest()
+        request = service.LookupRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.LookupResponse)
 
 
-def test_lookup_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_lookup_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
     )
 
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.LookupRequest(
+        parent="parent_value",
+    )
+
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(type(client.transport.lookup), "__call__") as call:
-        client.lookup()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.lookup(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.LookupRequest()
+        assert args[0] == service.LookupRequest(
+            parent="parent_value",
+        )
+
+
+def test_lookup_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert client._transport.lookup in client._transport._wrapped_methods
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[client._transport.lookup] = mock_rpc
+        request = {}
+        client.lookup(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.lookup(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_lookup_async_use_cached_wrapped_rpc(transport: str = "grpc_asyncio"):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.lookup
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.lookup
+        ] = mock_rpc
+
+        request = {}
+        await client.lookup(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.lookup(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -2258,7 +3228,7 @@ async def test_lookup_async(
     transport: str = "grpc_asyncio", request_type=service.LookupRequest
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -2277,7 +3247,8 @@ async def test_lookup_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.LookupRequest()
+        request = service.LookupRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.LookupResponse)
@@ -2320,7 +3291,7 @@ def test_lookup_field_headers():
 @pytest.mark.asyncio
 async def test_lookup_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -2395,7 +3366,7 @@ def test_lookup_flattened_error():
 @pytest.mark.asyncio
 async def test_lookup_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -2428,7 +3399,7 @@ async def test_lookup_flattened_async():
 @pytest.mark.asyncio
 async def test_lookup_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -2467,26 +3438,116 @@ def test_search(request_type, transport: str = "grpc"):
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.SearchRequest()
+        request = service.SearchRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.SearchResponse)
 
 
-def test_search_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_search_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
     )
 
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.SearchRequest(
+        parent="parent_value",
+        query="query_value",
+    )
+
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(type(client.transport.search), "__call__") as call:
-        client.search()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.search(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.SearchRequest()
+        assert args[0] == service.SearchRequest(
+            parent="parent_value",
+            query="query_value",
+        )
+
+
+def test_search_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert client._transport.search in client._transport._wrapped_methods
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[client._transport.search] = mock_rpc
+        request = {}
+        client.search(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.search(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_search_async_use_cached_wrapped_rpc(transport: str = "grpc_asyncio"):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.search
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.search
+        ] = mock_rpc
+
+        request = {}
+        await client.search(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.search(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -2494,7 +3555,7 @@ async def test_search_async(
     transport: str = "grpc_asyncio", request_type=service.SearchRequest
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -2513,7 +3574,8 @@ async def test_search_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.SearchRequest()
+        request = service.SearchRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.SearchResponse)
@@ -2556,7 +3618,7 @@ def test_search_field_headers():
 @pytest.mark.asyncio
 async def test_search_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -2631,7 +3693,7 @@ def test_search_flattened_error():
 @pytest.mark.asyncio
 async def test_search_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -2664,7 +3726,7 @@ async def test_search_flattened_async():
 @pytest.mark.asyncio
 async def test_search_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -2703,26 +3765,118 @@ def test_lookup_public_kg(request_type, transport: str = "grpc"):
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.LookupPublicKgRequest()
+        request = service.LookupPublicKgRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.LookupPublicKgResponse)
 
 
-def test_lookup_public_kg_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_lookup_public_kg_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
     )
 
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.LookupPublicKgRequest(
+        parent="parent_value",
+    )
+
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(type(client.transport.lookup_public_kg), "__call__") as call:
-        client.lookup_public_kg()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.lookup_public_kg(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.LookupPublicKgRequest()
+        assert args[0] == service.LookupPublicKgRequest(
+            parent="parent_value",
+        )
+
+
+def test_lookup_public_kg_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert client._transport.lookup_public_kg in client._transport._wrapped_methods
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.lookup_public_kg
+        ] = mock_rpc
+        request = {}
+        client.lookup_public_kg(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.lookup_public_kg(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_lookup_public_kg_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.lookup_public_kg
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.lookup_public_kg
+        ] = mock_rpc
+
+        request = {}
+        await client.lookup_public_kg(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.lookup_public_kg(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -2730,7 +3884,7 @@ async def test_lookup_public_kg_async(
     transport: str = "grpc_asyncio", request_type=service.LookupPublicKgRequest
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -2749,7 +3903,8 @@ async def test_lookup_public_kg_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.LookupPublicKgRequest()
+        request = service.LookupPublicKgRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.LookupPublicKgResponse)
@@ -2792,7 +3947,7 @@ def test_lookup_public_kg_field_headers():
 @pytest.mark.asyncio
 async def test_lookup_public_kg_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -2867,7 +4022,7 @@ def test_lookup_public_kg_flattened_error():
 @pytest.mark.asyncio
 async def test_lookup_public_kg_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -2900,7 +4055,7 @@ async def test_lookup_public_kg_flattened_async():
 @pytest.mark.asyncio
 async def test_lookup_public_kg_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -2939,26 +4094,120 @@ def test_search_public_kg(request_type, transport: str = "grpc"):
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.SearchPublicKgRequest()
+        request = service.SearchPublicKgRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.SearchPublicKgResponse)
 
 
-def test_search_public_kg_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_search_public_kg_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
     )
 
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = service.SearchPublicKgRequest(
+        parent="parent_value",
+        query="query_value",
+    )
+
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(type(client.transport.search_public_kg), "__call__") as call:
-        client.search_public_kg()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.search_public_kg(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.SearchPublicKgRequest()
+        assert args[0] == service.SearchPublicKgRequest(
+            parent="parent_value",
+            query="query_value",
+        )
+
+
+def test_search_public_kg_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert client._transport.search_public_kg in client._transport._wrapped_methods
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.search_public_kg
+        ] = mock_rpc
+        request = {}
+        client.search_public_kg(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.search_public_kg(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_search_public_kg_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.search_public_kg
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.search_public_kg
+        ] = mock_rpc
+
+        request = {}
+        await client.search_public_kg(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.search_public_kg(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -2966,7 +4215,7 @@ async def test_search_public_kg_async(
     transport: str = "grpc_asyncio", request_type=service.SearchPublicKgRequest
 ):
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -2985,7 +4234,8 @@ async def test_search_public_kg_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == service.SearchPublicKgRequest()
+        request = service.SearchPublicKgRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, service.SearchPublicKgResponse)
@@ -3028,7 +4278,7 @@ def test_search_public_kg_field_headers():
 @pytest.mark.asyncio
 async def test_search_public_kg_field_headers_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Any value that is part of the HTTP/1.1 URI should be sent as
@@ -3103,7 +4353,7 @@ def test_search_public_kg_flattened_error():
 @pytest.mark.asyncio
 async def test_search_public_kg_flattened_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
@@ -3136,7 +4386,7 @@ async def test_search_public_kg_flattened_async():
 @pytest.mark.asyncio
 async def test_search_public_kg_flattened_error_async():
     client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
     )
 
     # Attempting to call a method with both a request object and flattened
@@ -3149,79 +4399,45 @@ async def test_search_public_kg_flattened_error_async():
         )
 
 
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.CreateEntityReconciliationJobRequest,
-        dict,
-    ],
-)
-def test_create_entity_reconciliation_job_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request_init["entity_reconciliation_job"] = {
-        "name": "name_value",
-        "input_config": {
-            "bigquery_input_configs": [
-                {"bigquery_table": "bigquery_table_value", "gcs_uri": "gcs_uri_value"}
-            ],
-            "entity_type": 1,
-            "previous_result_bigquery_table": "previous_result_bigquery_table_value",
-        },
-        "output_config": {"bigquery_dataset": "bigquery_dataset_value"},
-        "state": 9,
-        "error": {
-            "code": 411,
-            "message": "message_value",
-            "details": [
-                {
-                    "type_url": "type.googleapis.com/google.protobuf.Duration",
-                    "value": b"\x08\x0c\x10\xdb\x07",
-                }
-            ],
-        },
-        "create_time": {"seconds": 751, "nanos": 543},
-        "end_time": {},
-        "update_time": {},
-        "recon_config": {
-            "connected_components_config": {"weight_threshold": 0.1716},
-            "affinity_clustering_config": {"compression_round_count": 2497},
-            "options": {"enable_geocoding_separation": True},
-            "model_config": {
-                "model_name": "model_name_value",
-                "version_tag": "version_tag_value",
-            },
-        },
-    }
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = service.EntityReconciliationJob(
-            name="name_value",
-            state=job_state.JobState.JOB_STATE_PENDING,
+def test_create_entity_reconciliation_job_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
         )
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        pb_return_value = service.EntityReconciliationJob.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.create_entity_reconciliation_job(request)
+        # Ensure method has been cached
+        assert (
+            client._transport.create_entity_reconciliation_job
+            in client._transport._wrapped_methods
+        )
 
-    # Establish that the response is the type that we expect.
-    assert isinstance(response, service.EntityReconciliationJob)
-    assert response.name == "name_value"
-    assert response.state == job_state.JobState.JOB_STATE_PENDING
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.create_entity_reconciliation_job
+        ] = mock_rpc
+
+        request = {}
+        client.create_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.create_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_create_entity_reconciliation_job_rest_required_fields(
@@ -3234,11 +4450,7 @@ def test_create_entity_reconciliation_job_rest_required_fields(
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -3289,11 +4501,13 @@ def test_create_entity_reconciliation_job_rest_required_fields(
             response_value = Response()
             response_value.status_code = 200
 
-            pb_return_value = service.EntityReconciliationJob.pb(return_value)
-            json_return_value = json_format.MessageToJson(pb_return_value)
+            # Convert return value to protobuf type
+            return_value = service.EntityReconciliationJob.pb(return_value)
+            json_return_value = json_format.MessageToJson(return_value)
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.create_entity_reconciliation_job(request)
 
@@ -3319,123 +4533,6 @@ def test_create_entity_reconciliation_job_rest_unset_required_fields():
             )
         )
     )
-
-
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_create_entity_reconciliation_job_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "post_create_entity_reconciliation_job",
-    ) as post, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "pre_create_entity_reconciliation_job",
-    ) as pre:
-        pre.assert_not_called()
-        post.assert_not_called()
-        pb_message = service.CreateEntityReconciliationJobRequest.pb(
-            service.CreateEntityReconciliationJobRequest()
-        )
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-        req.return_value._content = service.EntityReconciliationJob.to_json(
-            service.EntityReconciliationJob()
-        )
-
-        request = service.CreateEntityReconciliationJobRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-        post.return_value = service.EntityReconciliationJob()
-
-        client.create_entity_reconciliation_job(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-        post.assert_called_once()
-
-
-def test_create_entity_reconciliation_job_rest_bad_request(
-    transport: str = "rest", request_type=service.CreateEntityReconciliationJobRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request_init["entity_reconciliation_job"] = {
-        "name": "name_value",
-        "input_config": {
-            "bigquery_input_configs": [
-                {"bigquery_table": "bigquery_table_value", "gcs_uri": "gcs_uri_value"}
-            ],
-            "entity_type": 1,
-            "previous_result_bigquery_table": "previous_result_bigquery_table_value",
-        },
-        "output_config": {"bigquery_dataset": "bigquery_dataset_value"},
-        "state": 9,
-        "error": {
-            "code": 411,
-            "message": "message_value",
-            "details": [
-                {
-                    "type_url": "type.googleapis.com/google.protobuf.Duration",
-                    "value": b"\x08\x0c\x10\xdb\x07",
-                }
-            ],
-        },
-        "create_time": {"seconds": 751, "nanos": 543},
-        "end_time": {},
-        "update_time": {},
-        "recon_config": {
-            "connected_components_config": {"weight_threshold": 0.1716},
-            "affinity_clustering_config": {"compression_round_count": 2497},
-            "options": {"enable_geocoding_separation": True},
-            "model_config": {
-                "model_name": "model_name_value",
-                "version_tag": "version_tag_value",
-            },
-        },
-    }
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.create_entity_reconciliation_job(request)
 
 
 def test_create_entity_reconciliation_job_rest_flattened():
@@ -3464,10 +4561,12 @@ def test_create_entity_reconciliation_job_rest_flattened():
         # Wrap the value into a proper Response obj
         response_value = Response()
         response_value.status_code = 200
-        pb_return_value = service.EntityReconciliationJob.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Convert return value to protobuf type
+        return_value = service.EntityReconciliationJob.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.create_entity_reconciliation_job(**mock_args)
 
@@ -3500,53 +4599,45 @@ def test_create_entity_reconciliation_job_rest_flattened_error(transport: str = 
         )
 
 
-def test_create_entity_reconciliation_job_rest_error():
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
-    )
-
-
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.GetEntityReconciliationJobRequest,
-        dict,
-    ],
-)
-def test_get_entity_reconciliation_job_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {
-        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
-    }
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = service.EntityReconciliationJob(
-            name="name_value",
-            state=job_state.JobState.JOB_STATE_PENDING,
+def test_get_entity_reconciliation_job_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
         )
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        pb_return_value = service.EntityReconciliationJob.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.get_entity_reconciliation_job(request)
+        # Ensure method has been cached
+        assert (
+            client._transport.get_entity_reconciliation_job
+            in client._transport._wrapped_methods
+        )
 
-    # Establish that the response is the type that we expect.
-    assert isinstance(response, service.EntityReconciliationJob)
-    assert response.name == "name_value"
-    assert response.state == job_state.JobState.JOB_STATE_PENDING
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.get_entity_reconciliation_job
+        ] = mock_rpc
+
+        request = {}
+        client.get_entity_reconciliation_job(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.get_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_get_entity_reconciliation_job_rest_required_fields(
@@ -3559,11 +4650,7 @@ def test_get_entity_reconciliation_job_rest_required_fields(
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -3613,11 +4700,13 @@ def test_get_entity_reconciliation_job_rest_required_fields(
             response_value = Response()
             response_value.status_code = 200
 
-            pb_return_value = service.EntityReconciliationJob.pb(return_value)
-            json_return_value = json_format.MessageToJson(pb_return_value)
+            # Convert return value to protobuf type
+            return_value = service.EntityReconciliationJob.pb(return_value)
+            json_return_value = json_format.MessageToJson(return_value)
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.get_entity_reconciliation_job(request)
 
@@ -3635,91 +4724,6 @@ def test_get_entity_reconciliation_job_rest_unset_required_fields():
         {}
     )
     assert set(unset_fields) == (set(()) & set(("name",)))
-
-
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_get_entity_reconciliation_job_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "post_get_entity_reconciliation_job",
-    ) as post, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "pre_get_entity_reconciliation_job",
-    ) as pre:
-        pre.assert_not_called()
-        post.assert_not_called()
-        pb_message = service.GetEntityReconciliationJobRequest.pb(
-            service.GetEntityReconciliationJobRequest()
-        )
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-        req.return_value._content = service.EntityReconciliationJob.to_json(
-            service.EntityReconciliationJob()
-        )
-
-        request = service.GetEntityReconciliationJobRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-        post.return_value = service.EntityReconciliationJob()
-
-        client.get_entity_reconciliation_job(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-        post.assert_called_once()
-
-
-def test_get_entity_reconciliation_job_rest_bad_request(
-    transport: str = "rest", request_type=service.GetEntityReconciliationJobRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {
-        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
-    }
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.get_entity_reconciliation_job(request)
 
 
 def test_get_entity_reconciliation_job_rest_flattened():
@@ -3747,10 +4751,12 @@ def test_get_entity_reconciliation_job_rest_flattened():
         # Wrap the value into a proper Response obj
         response_value = Response()
         response_value.status_code = 200
-        pb_return_value = service.EntityReconciliationJob.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Convert return value to protobuf type
+        return_value = service.EntityReconciliationJob.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.get_entity_reconciliation_job(**mock_args)
 
@@ -3780,49 +4786,45 @@ def test_get_entity_reconciliation_job_rest_flattened_error(transport: str = "re
         )
 
 
-def test_get_entity_reconciliation_job_rest_error():
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
-    )
-
-
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.ListEntityReconciliationJobsRequest,
-        dict,
-    ],
-)
-def test_list_entity_reconciliation_jobs_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = service.ListEntityReconciliationJobsResponse(
-            next_page_token="next_page_token_value",
+def test_list_entity_reconciliation_jobs_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
         )
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        pb_return_value = service.ListEntityReconciliationJobsResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.list_entity_reconciliation_jobs(request)
+        # Ensure method has been cached
+        assert (
+            client._transport.list_entity_reconciliation_jobs
+            in client._transport._wrapped_methods
+        )
 
-    # Establish that the response is the type that we expect.
-    assert isinstance(response, pagers.ListEntityReconciliationJobsPager)
-    assert response.next_page_token == "next_page_token_value"
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.list_entity_reconciliation_jobs
+        ] = mock_rpc
+
+        request = {}
+        client.list_entity_reconciliation_jobs(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.list_entity_reconciliation_jobs(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_list_entity_reconciliation_jobs_rest_required_fields(
@@ -3835,11 +4837,7 @@ def test_list_entity_reconciliation_jobs_rest_required_fields(
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -3897,13 +4895,13 @@ def test_list_entity_reconciliation_jobs_rest_required_fields(
             response_value = Response()
             response_value.status_code = 200
 
-            pb_return_value = service.ListEntityReconciliationJobsResponse.pb(
-                return_value
-            )
-            json_return_value = json_format.MessageToJson(pb_return_value)
+            # Convert return value to protobuf type
+            return_value = service.ListEntityReconciliationJobsResponse.pb(return_value)
+            json_return_value = json_format.MessageToJson(return_value)
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.list_entity_reconciliation_jobs(request)
 
@@ -3932,91 +4930,6 @@ def test_list_entity_reconciliation_jobs_rest_unset_required_fields():
     )
 
 
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_list_entity_reconciliation_jobs_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "post_list_entity_reconciliation_jobs",
-    ) as post, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "pre_list_entity_reconciliation_jobs",
-    ) as pre:
-        pre.assert_not_called()
-        post.assert_not_called()
-        pb_message = service.ListEntityReconciliationJobsRequest.pb(
-            service.ListEntityReconciliationJobsRequest()
-        )
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-        req.return_value._content = (
-            service.ListEntityReconciliationJobsResponse.to_json(
-                service.ListEntityReconciliationJobsResponse()
-            )
-        )
-
-        request = service.ListEntityReconciliationJobsRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-        post.return_value = service.ListEntityReconciliationJobsResponse()
-
-        client.list_entity_reconciliation_jobs(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-        post.assert_called_once()
-
-
-def test_list_entity_reconciliation_jobs_rest_bad_request(
-    transport: str = "rest", request_type=service.ListEntityReconciliationJobsRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.list_entity_reconciliation_jobs(request)
-
-
 def test_list_entity_reconciliation_jobs_rest_flattened():
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
@@ -4040,10 +4953,12 @@ def test_list_entity_reconciliation_jobs_rest_flattened():
         # Wrap the value into a proper Response obj
         response_value = Response()
         response_value.status_code = 200
-        pb_return_value = service.ListEntityReconciliationJobsResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Convert return value to protobuf type
+        return_value = service.ListEntityReconciliationJobsResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.list_entity_reconciliation_jobs(**mock_args)
 
@@ -4138,41 +5053,45 @@ def test_list_entity_reconciliation_jobs_rest_pager(transport: str = "rest"):
             assert page_.raw_page.next_page_token == token
 
 
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.CancelEntityReconciliationJobRequest,
-        dict,
-    ],
-)
-def test_cancel_entity_reconciliation_job_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
+def test_cancel_entity_reconciliation_job_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
+        )
 
-    # send a request that will satisfy transcoding
-    request_init = {
-        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
-    }
-    request = request_type(**request_init)
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = None
+        # Ensure method has been cached
+        assert (
+            client._transport.cancel_entity_reconciliation_job
+            in client._transport._wrapped_methods
+        )
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        json_return_value = ""
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.cancel_entity_reconciliation_job
+        ] = mock_rpc
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.cancel_entity_reconciliation_job(request)
+        request = {}
+        client.cancel_entity_reconciliation_job(request)
 
-    # Establish that the response is the type that we expect.
-    assert response is None
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.cancel_entity_reconciliation_job(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_cancel_entity_reconciliation_job_rest_required_fields(
@@ -4185,11 +5104,7 @@ def test_cancel_entity_reconciliation_job_rest_required_fields(
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -4243,6 +5158,7 @@ def test_cancel_entity_reconciliation_job_rest_required_fields(
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.cancel_entity_reconciliation_job(request)
 
@@ -4260,82 +5176,6 @@ def test_cancel_entity_reconciliation_job_rest_unset_required_fields():
         transport.cancel_entity_reconciliation_job._get_unset_required_fields({})
     )
     assert set(unset_fields) == (set(()) & set(("name",)))
-
-
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_cancel_entity_reconciliation_job_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "pre_cancel_entity_reconciliation_job",
-    ) as pre:
-        pre.assert_not_called()
-        pb_message = service.CancelEntityReconciliationJobRequest.pb(
-            service.CancelEntityReconciliationJobRequest()
-        )
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-
-        request = service.CancelEntityReconciliationJobRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-
-        client.cancel_entity_reconciliation_job(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-
-
-def test_cancel_entity_reconciliation_job_rest_bad_request(
-    transport: str = "rest", request_type=service.CancelEntityReconciliationJobRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {
-        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
-    }
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.cancel_entity_reconciliation_job(request)
 
 
 def test_cancel_entity_reconciliation_job_rest_flattened():
@@ -4366,6 +5206,7 @@ def test_cancel_entity_reconciliation_job_rest_flattened():
         json_return_value = ""
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.cancel_entity_reconciliation_job(**mock_args)
 
@@ -4395,47 +5236,45 @@ def test_cancel_entity_reconciliation_job_rest_flattened_error(transport: str = 
         )
 
 
-def test_cancel_entity_reconciliation_job_rest_error():
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
-    )
+def test_delete_entity_reconciliation_job_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
+        )
 
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.DeleteEntityReconciliationJobRequest,
-        dict,
-    ],
-)
-def test_delete_entity_reconciliation_job_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
+        # Ensure method has been cached
+        assert (
+            client._transport.delete_entity_reconciliation_job
+            in client._transport._wrapped_methods
+        )
 
-    # send a request that will satisfy transcoding
-    request_init = {
-        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
-    }
-    request = request_type(**request_init)
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.delete_entity_reconciliation_job
+        ] = mock_rpc
 
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = None
+        request = {}
+        client.delete_entity_reconciliation_job(request)
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        json_return_value = ""
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.delete_entity_reconciliation_job(request)
+        client.delete_entity_reconciliation_job(request)
 
-    # Establish that the response is the type that we expect.
-    assert response is None
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_delete_entity_reconciliation_job_rest_required_fields(
@@ -4448,11 +5287,7 @@ def test_delete_entity_reconciliation_job_rest_required_fields(
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -4505,6 +5340,7 @@ def test_delete_entity_reconciliation_job_rest_required_fields(
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.delete_entity_reconciliation_job(request)
 
@@ -4522,82 +5358,6 @@ def test_delete_entity_reconciliation_job_rest_unset_required_fields():
         transport.delete_entity_reconciliation_job._get_unset_required_fields({})
     )
     assert set(unset_fields) == (set(()) & set(("name",)))
-
-
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_delete_entity_reconciliation_job_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "pre_delete_entity_reconciliation_job",
-    ) as pre:
-        pre.assert_not_called()
-        pb_message = service.DeleteEntityReconciliationJobRequest.pb(
-            service.DeleteEntityReconciliationJobRequest()
-        )
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-
-        request = service.DeleteEntityReconciliationJobRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-
-        client.delete_entity_reconciliation_job(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-
-
-def test_delete_entity_reconciliation_job_rest_bad_request(
-    transport: str = "rest", request_type=service.DeleteEntityReconciliationJobRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {
-        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
-    }
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.delete_entity_reconciliation_job(request)
 
 
 def test_delete_entity_reconciliation_job_rest_flattened():
@@ -4628,6 +5388,7 @@ def test_delete_entity_reconciliation_job_rest_flattened():
         json_return_value = ""
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.delete_entity_reconciliation_job(**mock_args)
 
@@ -4657,46 +5418,40 @@ def test_delete_entity_reconciliation_job_rest_flattened_error(transport: str = 
         )
 
 
-def test_delete_entity_reconciliation_job_rest_error():
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
-    )
+def test_lookup_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
+        )
 
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.LookupRequest,
-        dict,
-    ],
-)
-def test_lookup_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
+        # Ensure method has been cached
+        assert client._transport.lookup in client._transport._wrapped_methods
 
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[client._transport.lookup] = mock_rpc
 
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = service.LookupResponse()
+        request = {}
+        client.lookup(request)
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        pb_return_value = service.LookupResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.lookup(request)
+        client.lookup(request)
 
-    # Establish that the response is the type that we expect.
-    assert isinstance(response, service.LookupResponse)
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_lookup_rest_required_fields(request_type=service.LookupRequest):
@@ -4708,11 +5463,7 @@ def test_lookup_rest_required_fields(request_type=service.LookupRequest):
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -4775,11 +5526,13 @@ def test_lookup_rest_required_fields(request_type=service.LookupRequest):
             response_value = Response()
             response_value.status_code = 200
 
-            pb_return_value = service.LookupResponse.pb(return_value)
-            json_return_value = json_format.MessageToJson(pb_return_value)
+            # Convert return value to protobuf type
+            return_value = service.LookupResponse.pb(return_value)
+            json_return_value = json_format.MessageToJson(return_value)
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.lookup(request)
 
@@ -4816,85 +5569,6 @@ def test_lookup_rest_unset_required_fields():
     )
 
 
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_lookup_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor, "post_lookup"
-    ) as post, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor, "pre_lookup"
-    ) as pre:
-        pre.assert_not_called()
-        post.assert_not_called()
-        pb_message = service.LookupRequest.pb(service.LookupRequest())
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-        req.return_value._content = service.LookupResponse.to_json(
-            service.LookupResponse()
-        )
-
-        request = service.LookupRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-        post.return_value = service.LookupResponse()
-
-        client.lookup(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-        post.assert_called_once()
-
-
-def test_lookup_rest_bad_request(
-    transport: str = "rest", request_type=service.LookupRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.lookup(request)
-
-
 def test_lookup_rest_flattened():
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
@@ -4919,10 +5593,12 @@ def test_lookup_rest_flattened():
         # Wrap the value into a proper Response obj
         response_value = Response()
         response_value.status_code = 200
-        pb_return_value = service.LookupResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Convert return value to protobuf type
+        return_value = service.LookupResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.lookup(**mock_args)
 
@@ -4953,46 +5629,40 @@ def test_lookup_rest_flattened_error(transport: str = "rest"):
         )
 
 
-def test_lookup_rest_error():
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
-    )
+def test_search_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
+        )
 
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.SearchRequest,
-        dict,
-    ],
-)
-def test_search_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
+        # Ensure method has been cached
+        assert client._transport.search in client._transport._wrapped_methods
 
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[client._transport.search] = mock_rpc
 
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = service.SearchResponse()
+        request = {}
+        client.search(request)
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        pb_return_value = service.SearchResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.search(request)
+        client.search(request)
 
-    # Establish that the response is the type that we expect.
-    assert isinstance(response, service.SearchResponse)
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_search_rest_required_fields(request_type=service.SearchRequest):
@@ -5004,11 +5674,7 @@ def test_search_rest_required_fields(request_type=service.SearchRequest):
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -5073,11 +5739,13 @@ def test_search_rest_required_fields(request_type=service.SearchRequest):
             response_value = Response()
             response_value.status_code = 200
 
-            pb_return_value = service.SearchResponse.pb(return_value)
-            json_return_value = json_format.MessageToJson(pb_return_value)
+            # Convert return value to protobuf type
+            return_value = service.SearchResponse.pb(return_value)
+            json_return_value = json_format.MessageToJson(return_value)
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.search(request)
 
@@ -5116,85 +5784,6 @@ def test_search_rest_unset_required_fields():
     )
 
 
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_search_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor, "post_search"
-    ) as post, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor, "pre_search"
-    ) as pre:
-        pre.assert_not_called()
-        post.assert_not_called()
-        pb_message = service.SearchRequest.pb(service.SearchRequest())
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-        req.return_value._content = service.SearchResponse.to_json(
-            service.SearchResponse()
-        )
-
-        request = service.SearchRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-        post.return_value = service.SearchResponse()
-
-        client.search(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-        post.assert_called_once()
-
-
-def test_search_rest_bad_request(
-    transport: str = "rest", request_type=service.SearchRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.search(request)
-
-
 def test_search_rest_flattened():
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
@@ -5219,10 +5808,12 @@ def test_search_rest_flattened():
         # Wrap the value into a proper Response obj
         response_value = Response()
         response_value.status_code = 200
-        pb_return_value = service.SearchResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Convert return value to protobuf type
+        return_value = service.SearchResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.search(**mock_args)
 
@@ -5253,46 +5844,42 @@ def test_search_rest_flattened_error(transport: str = "rest"):
         )
 
 
-def test_search_rest_error():
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
-    )
+def test_lookup_public_kg_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
+        )
 
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.LookupPublicKgRequest,
-        dict,
-    ],
-)
-def test_lookup_public_kg_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
+        # Ensure method has been cached
+        assert client._transport.lookup_public_kg in client._transport._wrapped_methods
 
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.lookup_public_kg
+        ] = mock_rpc
 
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = service.LookupPublicKgResponse()
+        request = {}
+        client.lookup_public_kg(request)
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        pb_return_value = service.LookupPublicKgResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.lookup_public_kg(request)
+        client.lookup_public_kg(request)
 
-    # Establish that the response is the type that we expect.
-    assert isinstance(response, service.LookupPublicKgResponse)
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_lookup_public_kg_rest_required_fields(
@@ -5306,11 +5893,7 @@ def test_lookup_public_kg_rest_required_fields(
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -5373,11 +5956,13 @@ def test_lookup_public_kg_rest_required_fields(
             response_value = Response()
             response_value.status_code = 200
 
-            pb_return_value = service.LookupPublicKgResponse.pb(return_value)
-            json_return_value = json_format.MessageToJson(pb_return_value)
+            # Convert return value to protobuf type
+            return_value = service.LookupPublicKgResponse.pb(return_value)
+            json_return_value = json_format.MessageToJson(return_value)
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.lookup_public_kg(request)
 
@@ -5414,87 +5999,6 @@ def test_lookup_public_kg_rest_unset_required_fields():
     )
 
 
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_lookup_public_kg_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "post_lookup_public_kg",
-    ) as post, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "pre_lookup_public_kg",
-    ) as pre:
-        pre.assert_not_called()
-        post.assert_not_called()
-        pb_message = service.LookupPublicKgRequest.pb(service.LookupPublicKgRequest())
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-        req.return_value._content = service.LookupPublicKgResponse.to_json(
-            service.LookupPublicKgResponse()
-        )
-
-        request = service.LookupPublicKgRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-        post.return_value = service.LookupPublicKgResponse()
-
-        client.lookup_public_kg(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-        post.assert_called_once()
-
-
-def test_lookup_public_kg_rest_bad_request(
-    transport: str = "rest", request_type=service.LookupPublicKgRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.lookup_public_kg(request)
-
-
 def test_lookup_public_kg_rest_flattened():
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
@@ -5519,10 +6023,12 @@ def test_lookup_public_kg_rest_flattened():
         # Wrap the value into a proper Response obj
         response_value = Response()
         response_value.status_code = 200
-        pb_return_value = service.LookupPublicKgResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Convert return value to protobuf type
+        return_value = service.LookupPublicKgResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.lookup_public_kg(**mock_args)
 
@@ -5553,46 +6059,42 @@ def test_lookup_public_kg_rest_flattened_error(transport: str = "rest"):
         )
 
 
-def test_lookup_public_kg_rest_error():
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
-    )
+def test_search_public_kg_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = EnterpriseKnowledgeGraphServiceClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
+        )
 
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
 
-@pytest.mark.parametrize(
-    "request_type",
-    [
-        service.SearchPublicKgRequest,
-        dict,
-    ],
-)
-def test_search_public_kg_rest(request_type):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="rest",
-    )
+        # Ensure method has been cached
+        assert client._transport.search_public_kg in client._transport._wrapped_methods
 
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.search_public_kg
+        ] = mock_rpc
 
-    # Mock the http request call within the method and fake a response.
-    with mock.patch.object(type(client.transport._session), "request") as req:
-        # Designate an appropriate value for the returned response.
-        return_value = service.SearchPublicKgResponse()
+        request = {}
+        client.search_public_kg(request)
 
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 200
-        pb_return_value = service.SearchPublicKgResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
 
-        response_value._content = json_return_value.encode("UTF-8")
-        req.return_value = response_value
-        response = client.search_public_kg(request)
+        client.search_public_kg(request)
 
-    # Establish that the response is the type that we expect.
-    assert isinstance(response, service.SearchPublicKgResponse)
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 def test_search_public_kg_rest_required_fields(
@@ -5606,11 +6108,7 @@ def test_search_public_kg_rest_required_fields(
     request = request_type(**request_init)
     pb_request = request_type.pb(request)
     jsonified_request = json.loads(
-        json_format.MessageToJson(
-            pb_request,
-            including_default_value_fields=False,
-            use_integers_for_enums=False,
-        )
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
     )
 
     # verify fields with default values are dropped
@@ -5675,11 +6173,13 @@ def test_search_public_kg_rest_required_fields(
             response_value = Response()
             response_value.status_code = 200
 
-            pb_return_value = service.SearchPublicKgResponse.pb(return_value)
-            json_return_value = json_format.MessageToJson(pb_return_value)
+            # Convert return value to protobuf type
+            return_value = service.SearchPublicKgResponse.pb(return_value)
+            json_return_value = json_format.MessageToJson(return_value)
 
             response_value._content = json_return_value.encode("UTF-8")
             req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
             response = client.search_public_kg(request)
 
@@ -5718,87 +6218,6 @@ def test_search_public_kg_rest_unset_required_fields():
     )
 
 
-@pytest.mark.parametrize("null_interceptor", [True, False])
-def test_search_public_kg_rest_interceptors(null_interceptor):
-    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
-        credentials=ga_credentials.AnonymousCredentials(),
-        interceptor=None
-        if null_interceptor
-        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
-    )
-    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
-    with mock.patch.object(
-        type(client.transport._session), "request"
-    ) as req, mock.patch.object(
-        path_template, "transcode"
-    ) as transcode, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "post_search_public_kg",
-    ) as post, mock.patch.object(
-        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
-        "pre_search_public_kg",
-    ) as pre:
-        pre.assert_not_called()
-        post.assert_not_called()
-        pb_message = service.SearchPublicKgRequest.pb(service.SearchPublicKgRequest())
-        transcode.return_value = {
-            "method": "post",
-            "uri": "my_uri",
-            "body": pb_message,
-            "query_params": pb_message,
-        }
-
-        req.return_value = Response()
-        req.return_value.status_code = 200
-        req.return_value.request = PreparedRequest()
-        req.return_value._content = service.SearchPublicKgResponse.to_json(
-            service.SearchPublicKgResponse()
-        )
-
-        request = service.SearchPublicKgRequest()
-        metadata = [
-            ("key", "val"),
-            ("cephalopod", "squid"),
-        ]
-        pre.return_value = request, metadata
-        post.return_value = service.SearchPublicKgResponse()
-
-        client.search_public_kg(
-            request,
-            metadata=[
-                ("key", "val"),
-                ("cephalopod", "squid"),
-            ],
-        )
-
-        pre.assert_called_once()
-        post.assert_called_once()
-
-
-def test_search_public_kg_rest_bad_request(
-    transport: str = "rest", request_type=service.SearchPublicKgRequest
-):
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport=transport,
-    )
-
-    # send a request that will satisfy transcoding
-    request_init = {"parent": "projects/sample1/locations/sample2"}
-    request = request_type(**request_init)
-
-    # Mock the http request call within the method and fake a BadRequest error.
-    with mock.patch.object(Session, "request") as req, pytest.raises(
-        core_exceptions.BadRequest
-    ):
-        # Wrap the value into a proper Response obj
-        response_value = Response()
-        response_value.status_code = 400
-        response_value.request = Request()
-        req.return_value = response_value
-        client.search_public_kg(request)
-
-
 def test_search_public_kg_rest_flattened():
     client = EnterpriseKnowledgeGraphServiceClient(
         credentials=ga_credentials.AnonymousCredentials(),
@@ -5823,10 +6242,12 @@ def test_search_public_kg_rest_flattened():
         # Wrap the value into a proper Response obj
         response_value = Response()
         response_value.status_code = 200
-        pb_return_value = service.SearchPublicKgResponse.pb(return_value)
-        json_return_value = json_format.MessageToJson(pb_return_value)
+        # Convert return value to protobuf type
+        return_value = service.SearchPublicKgResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
         response_value._content = json_return_value.encode("UTF-8")
         req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
 
         client.search_public_kg(**mock_args)
 
@@ -5855,12 +6276,6 @@ def test_search_public_kg_rest_flattened_error(transport: str = "rest"):
             parent="parent_value",
             query="query_value",
         )
-
-
-def test_search_public_kg_rest_error():
-    client = EnterpriseKnowledgeGraphServiceClient(
-        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
-    )
 
 
 def test_credentials_transport_error():
@@ -5897,7 +6312,7 @@ def test_credentials_transport_error():
         )
 
     # It is an error to provide an api_key and a credential.
-    options = mock.Mock()
+    options = client_options.ClientOptions()
     options.api_key = "api_key"
     with pytest.raises(ValueError):
         client = EnterpriseKnowledgeGraphServiceClient(
@@ -5955,20 +6370,1863 @@ def test_transport_adc(transport_class):
         adc.assert_called_once()
 
 
+def test_transport_kind_grpc():
+    transport = EnterpriseKnowledgeGraphServiceClient.get_transport_class("grpc")(
+        credentials=ga_credentials.AnonymousCredentials()
+    )
+    assert transport.kind == "grpc"
+
+
+def test_initialize_client_w_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="grpc"
+    )
+    assert client is not None
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_create_entity_reconciliation_job_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.create_entity_reconciliation_job), "__call__"
+    ) as call:
+        call.return_value = service.EntityReconciliationJob()
+        client.create_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.CreateEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_get_entity_reconciliation_job_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.get_entity_reconciliation_job), "__call__"
+    ) as call:
+        call.return_value = service.EntityReconciliationJob()
+        client.get_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.GetEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_list_entity_reconciliation_jobs_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.list_entity_reconciliation_jobs), "__call__"
+    ) as call:
+        call.return_value = service.ListEntityReconciliationJobsResponse()
+        client.list_entity_reconciliation_jobs(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.ListEntityReconciliationJobsRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_cancel_entity_reconciliation_job_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.cancel_entity_reconciliation_job), "__call__"
+    ) as call:
+        call.return_value = None
+        client.cancel_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.CancelEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_delete_entity_reconciliation_job_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.delete_entity_reconciliation_job), "__call__"
+    ) as call:
+        call.return_value = None
+        client.delete_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.DeleteEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_lookup_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.lookup), "__call__") as call:
+        call.return_value = service.LookupResponse()
+        client.lookup(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.LookupRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_search_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.search), "__call__") as call:
+        call.return_value = service.SearchResponse()
+        client.search(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.SearchRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_lookup_public_kg_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.lookup_public_kg), "__call__") as call:
+        call.return_value = service.LookupPublicKgResponse()
+        client.lookup_public_kg(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.LookupPublicKgRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_search_public_kg_empty_call_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.search_public_kg), "__call__") as call:
+        call.return_value = service.SearchPublicKgResponse()
+        client.search_public_kg(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.SearchPublicKgRequest()
+
+        assert args[0] == request_msg
+
+
+def test_transport_kind_grpc_asyncio():
+    transport = EnterpriseKnowledgeGraphServiceAsyncClient.get_transport_class(
+        "grpc_asyncio"
+    )(credentials=async_anonymous_credentials())
+    assert transport.kind == "grpc_asyncio"
+
+
+def test_initialize_client_w_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(), transport="grpc_asyncio"
+    )
+    assert client is not None
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_create_entity_reconciliation_job_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.create_entity_reconciliation_job), "__call__"
+    ) as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            service.EntityReconciliationJob(
+                name="name_value",
+                state=job_state.JobState.JOB_STATE_PENDING,
+            )
+        )
+        await client.create_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.CreateEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_get_entity_reconciliation_job_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.get_entity_reconciliation_job), "__call__"
+    ) as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            service.EntityReconciliationJob(
+                name="name_value",
+                state=job_state.JobState.JOB_STATE_PENDING,
+            )
+        )
+        await client.get_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.GetEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_list_entity_reconciliation_jobs_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.list_entity_reconciliation_jobs), "__call__"
+    ) as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            service.ListEntityReconciliationJobsResponse(
+                next_page_token="next_page_token_value",
+            )
+        )
+        await client.list_entity_reconciliation_jobs(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.ListEntityReconciliationJobsRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_cancel_entity_reconciliation_job_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.cancel_entity_reconciliation_job), "__call__"
+    ) as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(None)
+        await client.cancel_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.CancelEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_delete_entity_reconciliation_job_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.delete_entity_reconciliation_job), "__call__"
+    ) as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(None)
+        await client.delete_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.DeleteEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_lookup_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.lookup), "__call__") as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            service.LookupResponse()
+        )
+        await client.lookup(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.LookupRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_search_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.search), "__call__") as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            service.SearchResponse()
+        )
+        await client.search(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.SearchRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_lookup_public_kg_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.lookup_public_kg), "__call__") as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            service.LookupPublicKgResponse()
+        )
+        await client.lookup_public_kg(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.LookupPublicKgRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_search_public_kg_empty_call_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.search_public_kg), "__call__") as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            service.SearchPublicKgResponse()
+        )
+        await client.search_public_kg(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.SearchPublicKgRequest()
+
+        assert args[0] == request_msg
+
+
+def test_transport_kind_rest():
+    transport = EnterpriseKnowledgeGraphServiceClient.get_transport_class("rest")(
+        credentials=ga_credentials.AnonymousCredentials()
+    )
+    assert transport.kind == "rest"
+
+
+def test_create_entity_reconciliation_job_rest_bad_request(
+    request_type=service.CreateEntityReconciliationJobRequest,
+):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.create_entity_reconciliation_job(request)
+
+
 @pytest.mark.parametrize(
-    "transport_name",
+    "request_type",
     [
-        "grpc",
-        "rest",
+        service.CreateEntityReconciliationJobRequest,
+        dict,
     ],
 )
-def test_transport_kind(transport_name):
-    transport = EnterpriseKnowledgeGraphServiceClient.get_transport_class(
-        transport_name
-    )(
-        credentials=ga_credentials.AnonymousCredentials(),
+def test_create_entity_reconciliation_job_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
     )
-    assert transport.kind == transport_name
+
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request_init["entity_reconciliation_job"] = {
+        "name": "name_value",
+        "input_config": {
+            "bigquery_input_configs": [
+                {"bigquery_table": "bigquery_table_value", "gcs_uri": "gcs_uri_value"}
+            ],
+            "entity_type": 1,
+            "previous_result_bigquery_table": "previous_result_bigquery_table_value",
+        },
+        "output_config": {"bigquery_dataset": "bigquery_dataset_value"},
+        "state": 9,
+        "error": {
+            "code": 411,
+            "message": "message_value",
+            "details": [
+                {
+                    "type_url": "type.googleapis.com/google.protobuf.Duration",
+                    "value": b"\x08\x0c\x10\xdb\x07",
+                }
+            ],
+        },
+        "create_time": {"seconds": 751, "nanos": 543},
+        "end_time": {},
+        "update_time": {},
+        "recon_config": {
+            "connected_components_config": {"weight_threshold": 0.1716},
+            "affinity_clustering_config": {"compression_round_count": 2497},
+            "options": {"enable_geocoding_separation": True},
+            "model_config": {
+                "model_name": "model_name_value",
+                "version_tag": "version_tag_value",
+            },
+        },
+    }
+    # The version of a generated dependency at test runtime may differ from the version used during generation.
+    # Delete any fields which are not present in the current runtime dependency
+    # See https://github.com/googleapis/gapic-generator-python/issues/1748
+
+    # Determine if the message type is proto-plus or protobuf
+    test_field = service.CreateEntityReconciliationJobRequest.meta.fields[
+        "entity_reconciliation_job"
+    ]
+
+    def get_message_fields(field):
+        # Given a field which is a message (composite type), return a list with
+        # all the fields of the message.
+        # If the field is not a composite type, return an empty list.
+        message_fields = []
+
+        if hasattr(field, "message") and field.message:
+            is_field_type_proto_plus_type = not hasattr(field.message, "DESCRIPTOR")
+
+            if is_field_type_proto_plus_type:
+                message_fields = field.message.meta.fields.values()
+            # Add `# pragma: NO COVER` because there may not be any `*_pb2` field types
+            else:  # pragma: NO COVER
+                message_fields = field.message.DESCRIPTOR.fields
+        return message_fields
+
+    runtime_nested_fields = [
+        (field.name, nested_field.name)
+        for field in get_message_fields(test_field)
+        for nested_field in get_message_fields(field)
+    ]
+
+    subfields_not_in_runtime = []
+
+    # For each item in the sample request, create a list of sub fields which are not present at runtime
+    # Add `# pragma: NO COVER` because this test code will not run if all subfields are present at runtime
+    for field, value in request_init[
+        "entity_reconciliation_job"
+    ].items():  # pragma: NO COVER
+        result = None
+        is_repeated = False
+        # For repeated fields
+        if isinstance(value, list) and len(value):
+            is_repeated = True
+            result = value[0]
+        # For fields where the type is another message
+        if isinstance(value, dict):
+            result = value
+
+        if result and hasattr(result, "keys"):
+            for subfield in result.keys():
+                if (field, subfield) not in runtime_nested_fields:
+                    subfields_not_in_runtime.append(
+                        {
+                            "field": field,
+                            "subfield": subfield,
+                            "is_repeated": is_repeated,
+                        }
+                    )
+
+    # Remove fields from the sample request which are not present in the runtime version of the dependency
+    # Add `# pragma: NO COVER` because this test code will not run if all subfields are present at runtime
+    for subfield_to_delete in subfields_not_in_runtime:  # pragma: NO COVER
+        field = subfield_to_delete.get("field")
+        field_repeated = subfield_to_delete.get("is_repeated")
+        subfield = subfield_to_delete.get("subfield")
+        if subfield:
+            if field_repeated:
+                for i in range(
+                    0, len(request_init["entity_reconciliation_job"][field])
+                ):
+                    del request_init["entity_reconciliation_job"][field][i][subfield]
+            else:
+                del request_init["entity_reconciliation_job"][field][subfield]
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = service.EntityReconciliationJob(
+            name="name_value",
+            state=job_state.JobState.JOB_STATE_PENDING,
+        )
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = service.EntityReconciliationJob.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.create_entity_reconciliation_job(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(response, service.EntityReconciliationJob)
+    assert response.name == "name_value"
+    assert response.state == job_state.JobState.JOB_STATE_PENDING
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_create_entity_reconciliation_job_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "post_create_entity_reconciliation_job",
+    ) as post, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "pre_create_entity_reconciliation_job",
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = service.CreateEntityReconciliationJobRequest.pb(
+            service.CreateEntityReconciliationJobRequest()
+        )
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = service.EntityReconciliationJob.to_json(
+            service.EntityReconciliationJob()
+        )
+        req.return_value.content = return_value
+
+        request = service.CreateEntityReconciliationJobRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = service.EntityReconciliationJob()
+
+        client.create_entity_reconciliation_job(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_get_entity_reconciliation_job_rest_bad_request(
+    request_type=service.GetEntityReconciliationJobRequest,
+):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {
+        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
+    }
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.get_entity_reconciliation_job(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        service.GetEntityReconciliationJobRequest,
+        dict,
+    ],
+)
+def test_get_entity_reconciliation_job_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {
+        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
+    }
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = service.EntityReconciliationJob(
+            name="name_value",
+            state=job_state.JobState.JOB_STATE_PENDING,
+        )
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = service.EntityReconciliationJob.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.get_entity_reconciliation_job(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(response, service.EntityReconciliationJob)
+    assert response.name == "name_value"
+    assert response.state == job_state.JobState.JOB_STATE_PENDING
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_get_entity_reconciliation_job_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "post_get_entity_reconciliation_job",
+    ) as post, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "pre_get_entity_reconciliation_job",
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = service.GetEntityReconciliationJobRequest.pb(
+            service.GetEntityReconciliationJobRequest()
+        )
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = service.EntityReconciliationJob.to_json(
+            service.EntityReconciliationJob()
+        )
+        req.return_value.content = return_value
+
+        request = service.GetEntityReconciliationJobRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = service.EntityReconciliationJob()
+
+        client.get_entity_reconciliation_job(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_list_entity_reconciliation_jobs_rest_bad_request(
+    request_type=service.ListEntityReconciliationJobsRequest,
+):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.list_entity_reconciliation_jobs(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        service.ListEntityReconciliationJobsRequest,
+        dict,
+    ],
+)
+def test_list_entity_reconciliation_jobs_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = service.ListEntityReconciliationJobsResponse(
+            next_page_token="next_page_token_value",
+        )
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = service.ListEntityReconciliationJobsResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.list_entity_reconciliation_jobs(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(response, pagers.ListEntityReconciliationJobsPager)
+    assert response.next_page_token == "next_page_token_value"
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_list_entity_reconciliation_jobs_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "post_list_entity_reconciliation_jobs",
+    ) as post, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "pre_list_entity_reconciliation_jobs",
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = service.ListEntityReconciliationJobsRequest.pb(
+            service.ListEntityReconciliationJobsRequest()
+        )
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = service.ListEntityReconciliationJobsResponse.to_json(
+            service.ListEntityReconciliationJobsResponse()
+        )
+        req.return_value.content = return_value
+
+        request = service.ListEntityReconciliationJobsRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = service.ListEntityReconciliationJobsResponse()
+
+        client.list_entity_reconciliation_jobs(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_cancel_entity_reconciliation_job_rest_bad_request(
+    request_type=service.CancelEntityReconciliationJobRequest,
+):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {
+        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
+    }
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.cancel_entity_reconciliation_job(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        service.CancelEntityReconciliationJobRequest,
+        dict,
+    ],
+)
+def test_cancel_entity_reconciliation_job_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {
+        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
+    }
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = None
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+        json_return_value = ""
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.cancel_entity_reconciliation_job(request)
+
+    # Establish that the response is the type that we expect.
+    assert response is None
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_cancel_entity_reconciliation_job_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "pre_cancel_entity_reconciliation_job",
+    ) as pre:
+        pre.assert_not_called()
+        pb_message = service.CancelEntityReconciliationJobRequest.pb(
+            service.CancelEntityReconciliationJobRequest()
+        )
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+
+        request = service.CancelEntityReconciliationJobRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+
+        client.cancel_entity_reconciliation_job(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+
+
+def test_delete_entity_reconciliation_job_rest_bad_request(
+    request_type=service.DeleteEntityReconciliationJobRequest,
+):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {
+        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
+    }
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.delete_entity_reconciliation_job(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        service.DeleteEntityReconciliationJobRequest,
+        dict,
+    ],
+)
+def test_delete_entity_reconciliation_job_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {
+        "name": "projects/sample1/locations/sample2/entityReconciliationJobs/sample3"
+    }
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = None
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+        json_return_value = ""
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.delete_entity_reconciliation_job(request)
+
+    # Establish that the response is the type that we expect.
+    assert response is None
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_delete_entity_reconciliation_job_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "pre_delete_entity_reconciliation_job",
+    ) as pre:
+        pre.assert_not_called()
+        pb_message = service.DeleteEntityReconciliationJobRequest.pb(
+            service.DeleteEntityReconciliationJobRequest()
+        )
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+
+        request = service.DeleteEntityReconciliationJobRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+
+        client.delete_entity_reconciliation_job(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+
+
+def test_lookup_rest_bad_request(request_type=service.LookupRequest):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.lookup(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        service.LookupRequest,
+        dict,
+    ],
+)
+def test_lookup_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = service.LookupResponse()
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = service.LookupResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.lookup(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(response, service.LookupResponse)
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_lookup_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor, "post_lookup"
+    ) as post, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor, "pre_lookup"
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = service.LookupRequest.pb(service.LookupRequest())
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = service.LookupResponse.to_json(service.LookupResponse())
+        req.return_value.content = return_value
+
+        request = service.LookupRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = service.LookupResponse()
+
+        client.lookup(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_search_rest_bad_request(request_type=service.SearchRequest):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.search(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        service.SearchRequest,
+        dict,
+    ],
+)
+def test_search_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = service.SearchResponse()
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = service.SearchResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.search(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(response, service.SearchResponse)
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_search_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor, "post_search"
+    ) as post, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor, "pre_search"
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = service.SearchRequest.pb(service.SearchRequest())
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = service.SearchResponse.to_json(service.SearchResponse())
+        req.return_value.content = return_value
+
+        request = service.SearchRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = service.SearchResponse()
+
+        client.search(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_lookup_public_kg_rest_bad_request(request_type=service.LookupPublicKgRequest):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.lookup_public_kg(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        service.LookupPublicKgRequest,
+        dict,
+    ],
+)
+def test_lookup_public_kg_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = service.LookupPublicKgResponse()
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = service.LookupPublicKgResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.lookup_public_kg(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(response, service.LookupPublicKgResponse)
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_lookup_public_kg_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "post_lookup_public_kg",
+    ) as post, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "pre_lookup_public_kg",
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = service.LookupPublicKgRequest.pb(service.LookupPublicKgRequest())
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = service.LookupPublicKgResponse.to_json(
+            service.LookupPublicKgResponse()
+        )
+        req.return_value.content = return_value
+
+        request = service.LookupPublicKgRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = service.LookupPublicKgResponse()
+
+        client.lookup_public_kg(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_search_public_kg_rest_bad_request(request_type=service.SearchPublicKgRequest):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.search_public_kg(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        service.SearchPublicKgRequest,
+        dict,
+    ],
+)
+def test_search_public_kg_rest_call_success(request_type):
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {"parent": "projects/sample1/locations/sample2"}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = service.SearchPublicKgResponse()
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = service.SearchPublicKgResponse.pb(return_value)
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.search_public_kg(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(response, service.SearchPublicKgResponse)
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_search_public_kg_rest_interceptors(null_interceptor):
+    transport = transports.EnterpriseKnowledgeGraphServiceRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.EnterpriseKnowledgeGraphServiceRestInterceptor(),
+    )
+    client = EnterpriseKnowledgeGraphServiceClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "post_search_public_kg",
+    ) as post, mock.patch.object(
+        transports.EnterpriseKnowledgeGraphServiceRestInterceptor,
+        "pre_search_public_kg",
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = service.SearchPublicKgRequest.pb(service.SearchPublicKgRequest())
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = service.SearchPublicKgResponse.to_json(
+            service.SearchPublicKgResponse()
+        )
+        req.return_value.content = return_value
+
+        request = service.SearchPublicKgRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = service.SearchPublicKgResponse()
+
+        client.search_public_kg(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_initialize_client_w_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    assert client is not None
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_create_entity_reconciliation_job_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.create_entity_reconciliation_job), "__call__"
+    ) as call:
+        client.create_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.CreateEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_get_entity_reconciliation_job_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.get_entity_reconciliation_job), "__call__"
+    ) as call:
+        client.get_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.GetEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_list_entity_reconciliation_jobs_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.list_entity_reconciliation_jobs), "__call__"
+    ) as call:
+        client.list_entity_reconciliation_jobs(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.ListEntityReconciliationJobsRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_cancel_entity_reconciliation_job_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.cancel_entity_reconciliation_job), "__call__"
+    ) as call:
+        client.cancel_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.CancelEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_delete_entity_reconciliation_job_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.delete_entity_reconciliation_job), "__call__"
+    ) as call:
+        client.delete_entity_reconciliation_job(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.DeleteEntityReconciliationJobRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_lookup_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.lookup), "__call__") as call:
+        client.lookup(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.LookupRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_search_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.search), "__call__") as call:
+        client.search(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.SearchRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_lookup_public_kg_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.lookup_public_kg), "__call__") as call:
+        client.lookup_public_kg(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.LookupPublicKgRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_search_public_kg_empty_call_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.search_public_kg), "__call__") as call:
+        client.search_public_kg(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = service.SearchPublicKgRequest()
+
+        assert args[0] == request_msg
 
 
 def test_transport_grpc_default():
@@ -6722,36 +8980,41 @@ def test_client_with_default_client_info():
         prep.assert_called_once_with(client_info)
 
 
-@pytest.mark.asyncio
-async def test_transport_close_async():
-    client = EnterpriseKnowledgeGraphServiceAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="grpc_asyncio",
+def test_transport_close_grpc():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="grpc"
     )
     with mock.patch.object(
-        type(getattr(client.transport, "grpc_channel")), "close"
+        type(getattr(client.transport, "_grpc_channel")), "close"
+    ) as close:
+        with client:
+            close.assert_not_called()
+        close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_transport_close_grpc_asyncio():
+    client = EnterpriseKnowledgeGraphServiceAsyncClient(
+        credentials=async_anonymous_credentials(), transport="grpc_asyncio"
+    )
+    with mock.patch.object(
+        type(getattr(client.transport, "_grpc_channel")), "close"
     ) as close:
         async with client:
             close.assert_not_called()
         close.assert_called_once()
 
 
-def test_transport_close():
-    transports = {
-        "rest": "_session",
-        "grpc": "_grpc_channel",
-    }
-
-    for transport, close_name in transports.items():
-        client = EnterpriseKnowledgeGraphServiceClient(
-            credentials=ga_credentials.AnonymousCredentials(), transport=transport
-        )
-        with mock.patch.object(
-            type(getattr(client.transport, close_name)), "close"
-        ) as close:
-            with client:
-                close.assert_not_called()
-            close.assert_called_once()
+def test_transport_close_rest():
+    client = EnterpriseKnowledgeGraphServiceClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    with mock.patch.object(
+        type(getattr(client.transport, "_session")), "close"
+    ) as close:
+        with client:
+            close.assert_not_called()
+        close.assert_called_once()
 
 
 def test_client_ctx():
@@ -6798,7 +9061,9 @@ def test_api_key_credentials(client_class, transport_class):
             patched.assert_called_once_with(
                 credentials=mock_cred,
                 credentials_file=None,
-                host=client.DEFAULT_ENDPOINT,
+                host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                    UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                ),
                 scopes=None,
                 client_cert_source_for_mtls=None,
                 quota_project_id=None,

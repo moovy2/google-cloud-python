@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -28,6 +30,7 @@ __protobuf__ = proto.module(
 class SynonymSet(proto.Message):
     r"""Represents a list of synonyms for a given context.
     For example a context "sales" could contain:
+
     Synonym 1: sale, invoice, bill, order
     Synonym 2: money, credit, finance, payment
     Synonym 3: shipping, freight, transport

@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,8 +39,8 @@ def partition(
 class routingCallTransformer(cst.CSTTransformer):
     CTRL_PARAMS: Tuple[str] = ('retry', 'timeout', 'metadata')
     METHOD_TO_PARAMS: Dict[str, Tuple[str]] = {
-        'compute_route_matrix': ('origins', 'destinations', 'travel_mode', 'routing_preference', 'departure_time', ),
-        'compute_routes': ('origin', 'destination', 'intermediates', 'travel_mode', 'routing_preference', 'polyline_quality', 'polyline_encoding', 'departure_time', 'compute_alternative_routes', 'route_modifiers', 'language_code', 'units', 'requested_reference_routes', ),
+        'compute_route_matrix': ('origins', 'destinations', 'travel_mode', 'routing_preference', 'departure_time', 'arrival_time', 'language_code', 'region_code', 'units', 'extra_computations', 'traffic_model', 'transit_preferences', ),
+        'compute_routes': ('origin', 'destination', 'intermediates', 'travel_mode', 'routing_preference', 'polyline_quality', 'polyline_encoding', 'departure_time', 'arrival_time', 'compute_alternative_routes', 'route_modifiers', 'language_code', 'region_code', 'units', 'optimize_waypoint_order', 'requested_reference_routes', 'extra_computations', 'traffic_model', 'transit_preferences', ),
     }
 
     def leave_Call(self, original: cst.Call, updated: cst.Call) -> cst.CSTNode:

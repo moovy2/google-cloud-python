@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -28,6 +30,15 @@ __protobuf__ = proto.module(
 class Units(proto.Enum):
     r"""A set of values that specify the unit of measure used in the
     display.
+
+    Values:
+        UNITS_UNSPECIFIED (0):
+            Units of measure not specified. Defaults to
+            the unit of measure inferred from the request.
+        METRIC (1):
+            Metric units of measure.
+        IMPERIAL (2):
+            Imperial (English) units of measure.
     """
     UNITS_UNSPECIFIED = 0
     METRIC = 1

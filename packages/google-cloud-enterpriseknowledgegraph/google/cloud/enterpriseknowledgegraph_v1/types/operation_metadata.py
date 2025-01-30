@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.protobuf import timestamp_pb2  # type: ignore
@@ -39,7 +41,24 @@ class CommonOperationMetadata(proto.Message):
     """
 
     class State(proto.Enum):
-        r"""State of the longrunning operation."""
+        r"""State of the longrunning operation.
+
+        Values:
+            STATE_UNSPECIFIED (0):
+                Unspecified state.
+            RUNNING (1):
+                Operation is still running.
+            CANCELLING (2):
+                Operation is being cancelled.
+            SUCCEEDED (3):
+                Operation succeeded.
+            FAILED (4):
+                Operation failed.
+            CANCELLED (5):
+                Operation is cancelled.
+            PENDING (6):
+                Operation is pending not running yet.
+        """
         STATE_UNSPECIFIED = 0
         RUNNING = 1
         CANCELLING = 2

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
 
-import google.apps.script.type.types  # type: ignore
+from google.apps.script.type.types import extension_point
 
 __protobuf__ = proto.module(
     package="google.apps.script.type.calendar",
@@ -62,6 +64,28 @@ class CalendarAddOnManifest(proto.Message):
     class EventAccess(proto.Enum):
         r"""An enum defining the level of data access event triggers
         require.
+
+        Values:
+            UNSPECIFIED (0):
+                Default value when nothing is set for
+                EventAccess.
+            METADATA (1):
+                METADATA gives event triggers the permission
+                to access the metadata of events such as event
+                id and calendar id.
+            READ (3):
+                READ gives event triggers access to all
+                provided event fields including the metadata,
+                attendees, and conference data.
+            WRITE (4):
+                WRITE gives event triggers access to the
+                metadata of events and the ability to perform
+                all actions, including adding attendees and
+                setting conference data.
+            READ_WRITE (5):
+                READ_WRITE gives event triggers access to all provided event
+                fields including the metadata, attendees, and conference
+                data and the ability to perform all actions.
         """
         UNSPECIFIED = 0
         METADATA = 1
@@ -69,12 +93,10 @@ class CalendarAddOnManifest(proto.Message):
         WRITE = 4
         READ_WRITE = 5
 
-    homepage_trigger: google.apps.script.type.types.HomepageExtensionPoint = (
-        proto.Field(
-            proto.MESSAGE,
-            number=6,
-            message=google.apps.script.type.types.HomepageExtensionPoint,
-        )
+    homepage_trigger: extension_point.HomepageExtensionPoint = proto.Field(
+        proto.MESSAGE,
+        number=6,
+        message=extension_point.HomepageExtensionPoint,
     )
     conference_solution: MutableSequence["ConferenceSolution"] = proto.RepeatedField(
         proto.MESSAGE,

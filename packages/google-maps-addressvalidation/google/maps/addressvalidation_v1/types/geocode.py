@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
-import google.geo.type.types  # type: ignore
+from google.geo.type.types import viewport
 from google.type import latlng_pb2  # type: ignore
 import proto  # type: ignore
 
@@ -35,6 +37,7 @@ class Geocode(proto.Message):
     Attributes:
         location (google.type.latlng_pb2.LatLng):
             The geocoded location of the input.
+
             Using place IDs is preferred over using
             addresses, latitude/longitude coordinates, or
             plus codes. Using coordinates when routing or
@@ -77,10 +80,10 @@ class Geocode(proto.Message):
         number=2,
         message="PlusCode",
     )
-    bounds: google.geo.type.types.Viewport = proto.Field(
+    bounds: viewport.Viewport = proto.Field(
         proto.MESSAGE,
         number=4,
-        message=google.geo.type.types.Viewport,
+        message=viewport.Viewport,
     )
     feature_size_meters: float = proto.Field(
         proto.FLOAT,

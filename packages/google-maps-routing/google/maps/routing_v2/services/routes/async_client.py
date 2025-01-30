@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +14,12 @@
 # limitations under the License.
 #
 from collections import OrderedDict
-import functools
+import logging as std_logging
 import re
 from typing import (
     AsyncIterable,
     Awaitable,
+    Callable,
     Dict,
     Mapping,
     MutableMapping,
@@ -32,7 +33,7 @@ from typing import (
 
 from google.api_core import exceptions as core_exceptions
 from google.api_core import gapic_v1
-from google.api_core import retry as retries
+from google.api_core import retry_async as retries
 from google.api_core.client_options import ClientOptions
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.oauth2 import service_account  # type: ignore
@@ -40,18 +41,32 @@ from google.oauth2 import service_account  # type: ignore
 from google.maps.routing_v2 import gapic_version as package_version
 
 try:
-    OptionalRetry = Union[retries.Retry, gapic_v1.method._MethodDefault]
+    OptionalRetry = Union[retries.AsyncRetry, gapic_v1.method._MethodDefault, None]
 except AttributeError:  # pragma: NO COVER
-    OptionalRetry = Union[retries.Retry, object]  # type: ignore
+    OptionalRetry = Union[retries.AsyncRetry, object, None]  # type: ignore
 
 from google.protobuf import duration_pb2  # type: ignore
 from google.rpc import status_pb2  # type: ignore
 
-from google.maps.routing_v2.types import fallback_info, route, routes_service
+from google.maps.routing_v2.types import (
+    fallback_info,
+    geocoding_results,
+    route,
+    routes_service,
+)
 
 from .client import RoutesClient
 from .transports.base import DEFAULT_CLIENT_INFO, RoutesTransport
 from .transports.grpc_asyncio import RoutesGrpcAsyncIOTransport
+
+try:
+    from google.api_core import client_logging  # type: ignore
+
+    CLIENT_LOGGING_SUPPORTED = True  # pragma: NO COVER
+except ImportError:  # pragma: NO COVER
+    CLIENT_LOGGING_SUPPORTED = False
+
+_LOGGER = std_logging.getLogger(__name__)
 
 
 class RoutesAsyncClient:
@@ -59,8 +74,12 @@ class RoutesAsyncClient:
 
     _client: RoutesClient
 
+    # Copy defaults from the synchronous client for use here.
+    # Note: DEFAULT_ENDPOINT is deprecated. Use _DEFAULT_ENDPOINT_TEMPLATE instead.
     DEFAULT_ENDPOINT = RoutesClient.DEFAULT_ENDPOINT
     DEFAULT_MTLS_ENDPOINT = RoutesClient.DEFAULT_MTLS_ENDPOINT
+    _DEFAULT_ENDPOINT_TEMPLATE = RoutesClient._DEFAULT_ENDPOINT_TEMPLATE
+    _DEFAULT_UNIVERSE = RoutesClient._DEFAULT_UNIVERSE
 
     common_billing_account_path = staticmethod(RoutesClient.common_billing_account_path)
     parse_common_billing_account_path = staticmethod(
@@ -126,7 +145,7 @@ class RoutesAsyncClient:
         The API endpoint is determined in the following order:
         (1) if `client_options.api_endpoint` if provided, use the provided one.
         (2) if `GOOGLE_API_USE_CLIENT_CERTIFICATE` environment variable is "always", use the
-        default mTLS endpoint; if the environment variabel is "never", use the default API
+        default mTLS endpoint; if the environment variable is "never", use the default API
         endpoint; otherwise if client cert source exists, use the default mTLS endpoint, otherwise
         use the default API endpoint.
 
@@ -155,19 +174,38 @@ class RoutesAsyncClient:
         """
         return self._client.transport
 
-    get_transport_class = functools.partial(
-        type(RoutesClient).get_transport_class, type(RoutesClient)
-    )
+    @property
+    def api_endpoint(self):
+        """Return the API endpoint used by the client instance.
+
+        Returns:
+            str: The API endpoint used by the client instance.
+        """
+        return self._client._api_endpoint
+
+    @property
+    def universe_domain(self) -> str:
+        """Return the universe domain used by the client instance.
+
+        Returns:
+            str: The universe domain used
+                by the client instance.
+        """
+        return self._client._universe_domain
+
+    get_transport_class = RoutesClient.get_transport_class
 
     def __init__(
         self,
         *,
         credentials: Optional[ga_credentials.Credentials] = None,
-        transport: Union[str, RoutesTransport] = "grpc_asyncio",
+        transport: Optional[
+            Union[str, RoutesTransport, Callable[..., RoutesTransport]]
+        ] = "grpc_asyncio",
         client_options: Optional[ClientOptions] = None,
         client_info: gapic_v1.client_info.ClientInfo = DEFAULT_CLIENT_INFO,
     ) -> None:
-        """Instantiates the routes client.
+        """Instantiates the routes async client.
 
         Args:
             credentials (Optional[google.auth.credentials.Credentials]): The
@@ -175,25 +213,42 @@ class RoutesAsyncClient:
                 credentials identify the application to the service; if none
                 are specified, the client will attempt to ascertain the
                 credentials from the environment.
-            transport (Union[str, ~.RoutesTransport]): The
-                transport to use. If set to None, a transport is chosen
-                automatically.
-            client_options (ClientOptions): Custom options for the client. It
-                won't take effect if a ``transport`` instance is provided.
-                (1) The ``api_endpoint`` property can be used to override the
-                default endpoint provided by the client. GOOGLE_API_USE_MTLS_ENDPOINT
-                environment variable can also be used to override the endpoint:
+            transport (Optional[Union[str,RoutesTransport,Callable[..., RoutesTransport]]]):
+                The transport to use, or a Callable that constructs and returns a new transport to use.
+                If a Callable is given, it will be called with the same set of initialization
+                arguments as used in the RoutesTransport constructor.
+                If set to None, a transport is chosen automatically.
+            client_options (Optional[Union[google.api_core.client_options.ClientOptions, dict]]):
+                Custom options for the client.
+
+                1. The ``api_endpoint`` property can be used to override the
+                default endpoint provided by the client when ``transport`` is
+                not explicitly provided. Only if this property is not set and
+                ``transport`` was not explicitly provided, the endpoint is
+                determined by the GOOGLE_API_USE_MTLS_ENDPOINT environment
+                variable, which have one of the following values:
                 "always" (always use the default mTLS endpoint), "never" (always
-                use the default regular endpoint) and "auto" (auto switch to the
-                default mTLS endpoint if client certificate is present, this is
-                the default value). However, the ``api_endpoint`` property takes
-                precedence if provided.
-                (2) If GOOGLE_API_USE_CLIENT_CERTIFICATE environment variable
+                use the default regular endpoint) and "auto" (auto-switch to the
+                default mTLS endpoint if client certificate is present; this is
+                the default value).
+
+                2. If the GOOGLE_API_USE_CLIENT_CERTIFICATE environment variable
                 is "true", then the ``client_cert_source`` property can be used
-                to provide client certificate for mutual TLS transport. If
+                to provide a client certificate for mTLS transport. If
                 not provided, the default SSL client certificate will be used if
                 present. If GOOGLE_API_USE_CLIENT_CERTIFICATE is "false" or not
                 set, no client certificate will be used.
+
+                3. The ``universe_domain`` property can be used to override the
+                default "googleapis.com" universe. Note that ``api_endpoint``
+                property still takes precedence; and ``universe_domain`` is
+                currently not supported for mTLS.
+
+            client_info (google.api_core.gapic_v1.client_info.ClientInfo):
+                The client info used to send a user-agent string along with
+                API requests. If ``None``, then default info will be used.
+                Generally, you only need to set this if you're developing
+                your own client library.
 
         Raises:
             google.auth.exceptions.MutualTlsChannelError: If mutual TLS transport
@@ -206,13 +261,35 @@ class RoutesAsyncClient:
             client_info=client_info,
         )
 
+        if CLIENT_LOGGING_SUPPORTED and _LOGGER.isEnabledFor(
+            std_logging.DEBUG
+        ):  # pragma: NO COVER
+            _LOGGER.debug(
+                "Created client `google.maps.routing_v2.RoutesAsyncClient`.",
+                extra={
+                    "serviceName": "google.maps.routing.v2.Routes",
+                    "universeDomain": getattr(
+                        self._client._transport._credentials, "universe_domain", ""
+                    ),
+                    "credentialsType": f"{type(self._client._transport._credentials).__module__}.{type(self._client._transport._credentials).__qualname__}",
+                    "credentialsInfo": getattr(
+                        self.transport._credentials, "get_cred_info", lambda: None
+                    )(),
+                }
+                if hasattr(self._client._transport, "_credentials")
+                else {
+                    "serviceName": "google.maps.routing.v2.Routes",
+                    "credentialsType": None,
+                },
+            )
+
     async def compute_routes(
         self,
         request: Optional[Union[routes_service.ComputeRoutesRequest, dict]] = None,
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> routes_service.ComputeRoutesResponse:
         r"""Returns the primary route along with optional alternate routes,
         given a set of terminal and intermediate waypoints.
@@ -222,7 +299,7 @@ class RoutesAsyncClient:
         using URL parameter ``$fields`` or ``fields``, or by using an
         HTTP/gRPC header ``X-Goog-FieldMask`` (see the `available URL
         parameters and
-        headers <https://cloud.google.com/apis/docs/system-parameters>`__.
+        headers <https://cloud.google.com/apis/docs/system-parameters>`__).
         The value is a comma separated list of field paths. See detailed
         documentation about `how to construct the field
         paths <https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/field_mask.proto>`__.
@@ -280,26 +357,32 @@ class RoutesAsyncClient:
         Args:
             request (Optional[Union[google.maps.routing_v2.types.ComputeRoutesRequest, dict]]):
                 The request object. ComputeRoutes request message.
-            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+            retry (google.api_core.retry_async.AsyncRetry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             google.maps.routing_v2.types.ComputeRoutesResponse:
                 ComputeRoutes the response message.
         """
         # Create or coerce a protobuf request object.
-        request = routes_service.ComputeRoutesRequest(request)
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, routes_service.ComputeRoutesRequest):
+            request = routes_service.ComputeRoutesRequest(request)
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method_async.wrap_method(
-            self._client._transport.compute_routes,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._client._transport._wrapped_methods[
+            self._client._transport.compute_routes
+        ]
+
+        # Validate the universe domain.
+        self._client._validate_universe_domain()
 
         # Send the request.
         response = await rpc(
@@ -318,7 +401,7 @@ class RoutesAsyncClient:
         *,
         retry: OptionalRetry = gapic_v1.method.DEFAULT,
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> Awaitable[AsyncIterable[routes_service.RouteMatrixElement]]:
         r"""Takes in a list of origins and destinations and returns a stream
         containing route information for each combination of origin and
@@ -329,7 +412,7 @@ class RoutesAsyncClient:
         using the URL parameter ``$fields`` or ``fields``, or by using
         the HTTP/gRPC header ``X-Goog-FieldMask`` (see the `available
         URL parameters and
-        headers <https://cloud.google.com/apis/docs/system-parameters>`__.
+        headers <https://cloud.google.com/apis/docs/system-parameters>`__).
         The value is a comma separated list of field paths. See this
         detailed documentation about `how to construct the field
         paths <https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/field_mask.proto>`__.
@@ -388,30 +471,36 @@ class RoutesAsyncClient:
         Args:
             request (Optional[Union[google.maps.routing_v2.types.ComputeRouteMatrixRequest, dict]]):
                 The request object. ComputeRouteMatrix request message
-            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+            retry (google.api_core.retry_async.AsyncRetry): Designation of what errors, if any,
                 should be retried.
             timeout (float): The timeout for this request.
-            metadata (Sequence[Tuple[str, str]]): Strings which should be
-                sent along with the request as metadata.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
 
         Returns:
             AsyncIterable[google.maps.routing_v2.types.RouteMatrixElement]:
-                Encapsulates route information
-                computed for an origin/destination pair
-                in the ComputeRouteMatrix API. This
-                proto can be streamed to the client.
+                Contains route information computed
+                for an origin/destination pair in the
+                ComputeRouteMatrix API. This proto can
+                be streamed to the client.
 
         """
         # Create or coerce a protobuf request object.
-        request = routes_service.ComputeRouteMatrixRequest(request)
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, routes_service.ComputeRouteMatrixRequest):
+            request = routes_service.ComputeRouteMatrixRequest(request)
 
         # Wrap the RPC method; this adds retry and timeout information,
         # and friendly error handling.
-        rpc = gapic_v1.method_async.wrap_method(
-            self._client._transport.compute_route_matrix,
-            default_timeout=None,
-            client_info=DEFAULT_CLIENT_INFO,
-        )
+        rpc = self._client._transport._wrapped_methods[
+            self._client._transport.compute_route_matrix
+        ]
+
+        # Validate the universe domain.
+        self._client._validate_universe_domain()
 
         # Send the request.
         response = rpc(
@@ -424,7 +513,7 @@ class RoutesAsyncClient:
         # Done; return the response.
         return response
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "RoutesAsyncClient":
         return self
 
     async def __aexit__(self, exc_type, exc, tb):

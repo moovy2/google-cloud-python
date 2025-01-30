@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
+from google.protobuf import field_mask_pb2  # type: ignore
+from google.protobuf import timestamp_pb2  # type: ignore
 import proto  # type: ignore
 
 from google.cloud.discoveryengine_v1beta.types import document as gcd_document
@@ -28,6 +32,8 @@ __protobuf__ = proto.module(
         "CreateDocumentRequest",
         "UpdateDocumentRequest",
         "DeleteDocumentRequest",
+        "BatchGetDocumentsMetadataRequest",
+        "BatchGetDocumentsMetadataResponse",
     },
 )
 
@@ -42,16 +48,16 @@ class GetDocumentRequest(proto.Message):
             Required. Full resource name of
             [Document][google.cloud.discoveryengine.v1beta.Document],
             such as
-            ``projects/{project}/locations/{location}/dataStores/{data_store}/branches/{branch}/documents/{document}``.
+            ``projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}/branches/{branch}/documents/{document}``.
 
             If the caller does not have permission to access the
             [Document][google.cloud.discoveryengine.v1beta.Document],
-            regardless of whether or not it exists, a PERMISSION_DENIED
-            error is returned.
+            regardless of whether or not it exists, a
+            ``PERMISSION_DENIED`` error is returned.
 
             If the requested
             [Document][google.cloud.discoveryengine.v1beta.Document]
-            does not exist, a NOT_FOUND error is returned.
+            does not exist, a ``NOT_FOUND`` error is returned.
     """
 
     name: str = proto.Field(
@@ -68,21 +74,21 @@ class ListDocumentsRequest(proto.Message):
     Attributes:
         parent (str):
             Required. The parent branch resource name, such as
-            ``projects/{project}/locations/{location}/dataStores/{data_store}/branches/{branch}``.
+            ``projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}/branches/{branch}``.
             Use ``default_branch`` as the branch ID, to list documents
             under the default branch.
 
             If the caller does not have permission to list
-            [Documents][]s under this branch, regardless of whether or
-            not this branch exists, a PERMISSION_DENIED error is
-            returned.
+            [Document][google.cloud.discoveryengine.v1beta.Document]s
+            under this branch, regardless of whether or not this branch
+            exists, a ``PERMISSION_DENIED`` error is returned.
         page_size (int):
             Maximum number of
             [Document][google.cloud.discoveryengine.v1beta.Document]s to
             return. If unspecified, defaults to 100. The maximum allowed
-            value is 1000. Values above 1000 will be coerced to 1000.
+            value is 1000. Values above 1000 are set to 1000.
 
-            If this field is negative, an INVALID_ARGUMENT error is
+            If this field is negative, an ``INVALID_ARGUMENT`` error is
             returned.
         page_token (str):
             A page token
@@ -94,7 +100,7 @@ class ListDocumentsRequest(proto.Message):
             When paginating, all other parameters provided to
             [DocumentService.ListDocuments][google.cloud.discoveryengine.v1beta.DocumentService.ListDocuments]
             must match the call that provided the page token. Otherwise,
-            an INVALID_ARGUMENT error is returned.
+            an ``INVALID_ARGUMENT`` error is returned.
     """
 
     parent: str = proto.Field(
@@ -150,7 +156,7 @@ class CreateDocumentRequest(proto.Message):
     Attributes:
         parent (str):
             Required. The parent resource name, such as
-            ``projects/{project}/locations/{location}/dataStores/{data_store}/branches/{branch}``.
+            ``projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}/branches/{branch}``.
         document (google.cloud.discoveryengine_v1beta.types.Document):
             Required. The
             [Document][google.cloud.discoveryengine.v1beta.Document] to
@@ -158,24 +164,24 @@ class CreateDocumentRequest(proto.Message):
         document_id (str):
             Required. The ID to use for the
             [Document][google.cloud.discoveryengine.v1beta.Document],
-            which will become the final component of the
+            which becomes the final component of the
             [Document.name][google.cloud.discoveryengine.v1beta.Document.name].
 
             If the caller does not have permission to create the
             [Document][google.cloud.discoveryengine.v1beta.Document],
-            regardless of whether or not it exists, a PERMISSION_DENIED
-            error is returned.
+            regardless of whether or not it exists, a
+            ``PERMISSION_DENIED`` error is returned.
 
             This field must be unique among all
             [Document][google.cloud.discoveryengine.v1beta.Document]s
             with the same
             [parent][google.cloud.discoveryengine.v1beta.CreateDocumentRequest.parent].
-            Otherwise, an ALREADY_EXISTS error is returned.
+            Otherwise, an ``ALREADY_EXISTS`` error is returned.
 
             This field must conform to
             `RFC-1034 <https://tools.ietf.org/html/rfc1034>`__ standard
             with a length limit of 63 characters. Otherwise, an
-            INVALID_ARGUMENT error is returned.
+            ``INVALID_ARGUMENT`` error is returned.
     """
 
     parent: str = proto.Field(
@@ -204,20 +210,24 @@ class UpdateDocumentRequest(proto.Message):
 
             If the caller does not have permission to update the
             [Document][google.cloud.discoveryengine.v1beta.Document],
-            regardless of whether or not it exists, a PERMISSION_DENIED
-            error is returned.
+            regardless of whether or not it exists, a
+            ``PERMISSION_DENIED`` error is returned.
 
             If the
             [Document][google.cloud.discoveryengine.v1beta.Document] to
             update does not exist and
             [allow_missing][google.cloud.discoveryengine.v1beta.UpdateDocumentRequest.allow_missing]
-            is not set, a NOT_FOUND error is returned.
+            is not set, a ``NOT_FOUND`` error is returned.
         allow_missing (bool):
-            If set to true, and the
+            If set to ``true`` and the
             [Document][google.cloud.discoveryengine.v1beta.Document] is
             not found, a new
-            [Document][google.cloud.discoveryengine.v1beta.Document]
-            will be created.
+            [Document][google.cloud.discoveryengine.v1beta.Document] is
+            be created.
+        update_mask (google.protobuf.field_mask_pb2.FieldMask):
+            Indicates which fields in the provided
+            imported 'document' to update. If not set, by
+            default updates all fields.
     """
 
     document: gcd_document.Document = proto.Field(
@@ -228,6 +238,11 @@ class UpdateDocumentRequest(proto.Message):
     allow_missing: bool = proto.Field(
         proto.BOOL,
         number=2,
+    )
+    update_mask: field_mask_pb2.FieldMask = proto.Field(
+        proto.MESSAGE,
+        number=3,
+        message=field_mask_pb2.FieldMask,
     )
 
 
@@ -241,21 +256,235 @@ class DeleteDocumentRequest(proto.Message):
             Required. Full resource name of
             [Document][google.cloud.discoveryengine.v1beta.Document],
             such as
-            ``projects/{project}/locations/{location}/dataStores/{data_store}/branches/{branch}/documents/{document}``.
+            ``projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}/branches/{branch}/documents/{document}``.
 
             If the caller does not have permission to delete the
             [Document][google.cloud.discoveryengine.v1beta.Document],
-            regardless of whether or not it exists, a PERMISSION_DENIED
-            error is returned.
+            regardless of whether or not it exists, a
+            ``PERMISSION_DENIED`` error is returned.
 
             If the
             [Document][google.cloud.discoveryengine.v1beta.Document] to
-            delete does not exist, a NOT_FOUND error is returned.
+            delete does not exist, a ``NOT_FOUND`` error is returned.
     """
 
     name: str = proto.Field(
         proto.STRING,
         number=1,
+    )
+
+
+class BatchGetDocumentsMetadataRequest(proto.Message):
+    r"""Request message for
+    [DocumentService.BatchGetDocumentsMetadata][google.cloud.discoveryengine.v1beta.DocumentService.BatchGetDocumentsMetadata]
+    method.
+
+    Attributes:
+        parent (str):
+            Required. The parent branch resource name, such as
+            ``projects/{project}/locations/{location}/collections/{collection}/dataStores/{data_store}/branches/{branch}``.
+        matcher (google.cloud.discoveryengine_v1beta.types.BatchGetDocumentsMetadataRequest.Matcher):
+            Required. Matcher for the
+            [Document][google.cloud.discoveryengine.v1beta.Document]s.
+    """
+
+    class UrisMatcher(proto.Message):
+        r"""Matcher for the
+        [Document][google.cloud.discoveryengine.v1beta.Document]s by exact
+        uris.
+
+        Attributes:
+            uris (MutableSequence[str]):
+                The exact URIs to match by.
+        """
+
+        uris: MutableSequence[str] = proto.RepeatedField(
+            proto.STRING,
+            number=1,
+        )
+
+    class FhirMatcher(proto.Message):
+        r"""Matcher for the
+        [Document][google.cloud.discoveryengine.v1beta.Document]s by FHIR
+        resource names.
+
+        Attributes:
+            fhir_resources (MutableSequence[str]):
+                Required. The FHIR resources to match by. Format:
+                projects/{project}/locations/{location}/datasets/{dataset}/fhirStores/{fhir_store}/fhir/{resource_type}/{fhir_resource_id}
+        """
+
+        fhir_resources: MutableSequence[str] = proto.RepeatedField(
+            proto.STRING,
+            number=1,
+        )
+
+    class Matcher(proto.Message):
+        r"""Matcher for the
+        [Document][google.cloud.discoveryengine.v1beta.Document]s. Currently
+        supports matching by exact URIs.
+
+        This message has `oneof`_ fields (mutually exclusive fields).
+        For each oneof, at most one member field can be set at the same time.
+        Setting any member of the oneof automatically clears all other
+        members.
+
+        .. _oneof: https://proto-plus-python.readthedocs.io/en/stable/fields.html#oneofs-mutually-exclusive-fields
+
+        Attributes:
+            uris_matcher (google.cloud.discoveryengine_v1beta.types.BatchGetDocumentsMetadataRequest.UrisMatcher):
+                Matcher by exact URIs.
+
+                This field is a member of `oneof`_ ``matcher``.
+            fhir_matcher (google.cloud.discoveryengine_v1beta.types.BatchGetDocumentsMetadataRequest.FhirMatcher):
+                Matcher by FHIR resource names.
+
+                This field is a member of `oneof`_ ``matcher``.
+        """
+
+        uris_matcher: "BatchGetDocumentsMetadataRequest.UrisMatcher" = proto.Field(
+            proto.MESSAGE,
+            number=1,
+            oneof="matcher",
+            message="BatchGetDocumentsMetadataRequest.UrisMatcher",
+        )
+        fhir_matcher: "BatchGetDocumentsMetadataRequest.FhirMatcher" = proto.Field(
+            proto.MESSAGE,
+            number=2,
+            oneof="matcher",
+            message="BatchGetDocumentsMetadataRequest.FhirMatcher",
+        )
+
+    parent: str = proto.Field(
+        proto.STRING,
+        number=1,
+    )
+    matcher: Matcher = proto.Field(
+        proto.MESSAGE,
+        number=2,
+        message=Matcher,
+    )
+
+
+class BatchGetDocumentsMetadataResponse(proto.Message):
+    r"""Response message for
+    [DocumentService.BatchGetDocumentsMetadata][google.cloud.discoveryengine.v1beta.DocumentService.BatchGetDocumentsMetadata]
+    method.
+
+    Attributes:
+        documents_metadata (MutableSequence[google.cloud.discoveryengine_v1beta.types.BatchGetDocumentsMetadataResponse.DocumentMetadata]):
+            The metadata of the
+            [Document][google.cloud.discoveryengine.v1beta.Document]s.
+    """
+
+    class State(proto.Enum):
+        r"""The state of the
+        [Document][google.cloud.discoveryengine.v1beta.Document].
+
+        Values:
+            STATE_UNSPECIFIED (0):
+                Should never be set.
+            INDEXED (1):
+                The [Document][google.cloud.discoveryengine.v1beta.Document]
+                is indexed.
+            NOT_IN_TARGET_SITE (2):
+                The [Document][google.cloud.discoveryengine.v1beta.Document]
+                is not indexed because its URI is not in the
+                [TargetSite][google.cloud.discoveryengine.v1beta.TargetSite].
+            NOT_IN_INDEX (3):
+                The [Document][google.cloud.discoveryengine.v1beta.Document]
+                is not indexed.
+        """
+        STATE_UNSPECIFIED = 0
+        INDEXED = 1
+        NOT_IN_TARGET_SITE = 2
+        NOT_IN_INDEX = 3
+
+    class DocumentMetadata(proto.Message):
+        r"""The metadata of a
+        [Document][google.cloud.discoveryengine.v1beta.Document].
+
+        Attributes:
+            matcher_value (google.cloud.discoveryengine_v1beta.types.BatchGetDocumentsMetadataResponse.DocumentMetadata.MatcherValue):
+                The value of the matcher that was used to match the
+                [Document][google.cloud.discoveryengine.v1beta.Document].
+            state (google.cloud.discoveryengine_v1beta.types.BatchGetDocumentsMetadataResponse.State):
+                The state of the document.
+            last_refreshed_time (google.protobuf.timestamp_pb2.Timestamp):
+                The timestamp of the last time the
+                [Document][google.cloud.discoveryengine.v1beta.Document] was
+                last indexed.
+            data_ingestion_source (str):
+                The data ingestion source of the
+                [Document][google.cloud.discoveryengine.v1beta.Document].
+
+                Allowed values are:
+
+                -  ``batch``: Data ingested via Batch API, e.g.,
+                   ImportDocuments.
+                -  ``streaming`` Data ingested via Streaming API, e.g., FHIR
+                   streaming.
+        """
+
+        class MatcherValue(proto.Message):
+            r"""The value of the matcher that was used to match the
+            [Document][google.cloud.discoveryengine.v1beta.Document].
+
+            This message has `oneof`_ fields (mutually exclusive fields).
+            For each oneof, at most one member field can be set at the same time.
+            Setting any member of the oneof automatically clears all other
+            members.
+
+            .. _oneof: https://proto-plus-python.readthedocs.io/en/stable/fields.html#oneofs-mutually-exclusive-fields
+
+            Attributes:
+                uri (str):
+                    If match by URI, the URI of the
+                    [Document][google.cloud.discoveryengine.v1beta.Document].
+
+                    This field is a member of `oneof`_ ``matcher_value``.
+                fhir_resource (str):
+                    Format:
+                    projects/{project}/locations/{location}/datasets/{dataset}/fhirStores/{fhir_store}/fhir/{resource_type}/{fhir_resource_id}
+
+                    This field is a member of `oneof`_ ``matcher_value``.
+            """
+
+            uri: str = proto.Field(
+                proto.STRING,
+                number=1,
+                oneof="matcher_value",
+            )
+            fhir_resource: str = proto.Field(
+                proto.STRING,
+                number=2,
+                oneof="matcher_value",
+            )
+
+        matcher_value: "BatchGetDocumentsMetadataResponse.DocumentMetadata.MatcherValue" = proto.Field(
+            proto.MESSAGE,
+            number=2,
+            message="BatchGetDocumentsMetadataResponse.DocumentMetadata.MatcherValue",
+        )
+        state: "BatchGetDocumentsMetadataResponse.State" = proto.Field(
+            proto.ENUM,
+            number=3,
+            enum="BatchGetDocumentsMetadataResponse.State",
+        )
+        last_refreshed_time: timestamp_pb2.Timestamp = proto.Field(
+            proto.MESSAGE,
+            number=4,
+            message=timestamp_pb2.Timestamp,
+        )
+        data_ingestion_source: str = proto.Field(
+            proto.STRING,
+            number=5,
+        )
+
+    documents_metadata: MutableSequence[DocumentMetadata] = proto.RepeatedField(
+        proto.MESSAGE,
+        number=1,
+        message=DocumentMetadata,
     )
 
 

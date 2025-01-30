@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -29,14 +31,14 @@ __protobuf__ = proto.module(
 
 class NavigationInstruction(proto.Message):
     r"""Encapsulates navigation instructions for a
-    [RouteLegStep][google.maps.routing.v2.RouteLegStep]
+    [``RouteLegStep``][google.maps.routing.v2.RouteLegStep].
 
     Attributes:
         maneuver (google.maps.routing_v2.types.Maneuver):
             Encapsulates the navigation instructions for
-            the current step (e.g., turn left, merge,
-            straight, etc.). This field determines which
-            icon to display.
+            the current step (for example, turn left, merge,
+            or straight). This field determines which icon
+            to display.
         instructions (str):
             Instructions for navigating this step.
     """

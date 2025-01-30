@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ def sample_create_vmware_engine_network():
 
     # Initialize request argument(s)
     vmware_engine_network = vmwareengine_v1.VmwareEngineNetwork()
-    vmware_engine_network.type_ = "LEGACY"
+    vmware_engine_network.type_ = "STANDARD"
 
     request = vmwareengine_v1.CreateVmwareEngineNetworkRequest(
         parent="parent_value",

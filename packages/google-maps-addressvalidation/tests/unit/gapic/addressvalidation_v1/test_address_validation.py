@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,21 +22,36 @@ try:
 except ImportError:  # pragma: NO COVER
     import mock
 
+from collections.abc import AsyncIterable, Iterable
+import json
 import math
 
-from google.api_core import gapic_v1, grpc_helpers, grpc_helpers_async, path_template
-from google.api_core import client_options
-from google.api_core import exceptions as core_exceptions
-import google.auth
-from google.auth import credentials as ga_credentials
-from google.auth.exceptions import MutualTLSChannelError
-from google.oauth2 import service_account
-from google.type import postal_address_pb2  # type: ignore
+from google.api_core import api_core_version
+from google.protobuf import json_format
 import grpc
 from grpc.experimental import aio
 from proto.marshal.rules import wrappers
 from proto.marshal.rules.dates import DurationRule, TimestampRule
 import pytest
+from requests import PreparedRequest, Request, Response
+from requests.sessions import Session
+
+try:
+    from google.auth.aio import credentials as ga_credentials_async
+
+    HAS_GOOGLE_AUTH_AIO = True
+except ImportError:  # pragma: NO COVER
+    HAS_GOOGLE_AUTH_AIO = False
+
+from google.api_core import gapic_v1, grpc_helpers, grpc_helpers_async, path_template
+from google.api_core import client_options
+from google.api_core import exceptions as core_exceptions
+from google.api_core import retry as retries
+import google.auth
+from google.auth import credentials as ga_credentials
+from google.auth.exceptions import MutualTLSChannelError
+from google.oauth2 import service_account
+from google.type import postal_address_pb2  # type: ignore
 
 from google.maps.addressvalidation_v1.services.address_validation import (
     AddressValidationAsyncClient,
@@ -46,8 +61,22 @@ from google.maps.addressvalidation_v1.services.address_validation import (
 from google.maps.addressvalidation_v1.types import address_validation_service
 
 
+async def mock_async_gen(data, chunk_size=1):
+    for i in range(0, len(data)):  # pragma: NO COVER
+        chunk = data[i : i + chunk_size]
+        yield chunk.encode("utf-8")
+
+
 def client_cert_source_callback():
     return b"cert bytes", b"key bytes"
+
+
+# TODO: use async auth anon credentials by default once the minimum version of google-auth is upgraded.
+# See related issue: https://github.com/googleapis/gapic-generator-python/issues/2107.
+def async_anonymous_credentials():
+    if HAS_GOOGLE_AUTH_AIO:
+        return ga_credentials_async.AnonymousCredentials()
+    return ga_credentials.AnonymousCredentials()
 
 
 # If default endpoint is localhost, then default mtls endpoint will be the same.
@@ -58,6 +87,17 @@ def modify_default_endpoint(client):
         "foo.googleapis.com"
         if ("localhost" in client.DEFAULT_ENDPOINT)
         else client.DEFAULT_ENDPOINT
+    )
+
+
+# If default endpoint template is localhost, then default mtls endpoint will be the same.
+# This method modifies the default endpoint template so the client can produce a different
+# mtls endpoint for endpoint testing purposes.
+def modify_default_endpoint_template(client):
+    return (
+        "test.{UNIVERSE_DOMAIN}"
+        if ("localhost" in client._DEFAULT_ENDPOINT_TEMPLATE)
+        else client._DEFAULT_ENDPOINT_TEMPLATE
     )
 
 
@@ -91,11 +131,208 @@ def test__get_default_mtls_endpoint():
     )
 
 
+def test__read_environment_variables():
+    assert AddressValidationClient._read_environment_variables() == (
+        False,
+        "auto",
+        None,
+    )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "true"}):
+        assert AddressValidationClient._read_environment_variables() == (
+            True,
+            "auto",
+            None,
+        )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "false"}):
+        assert AddressValidationClient._read_environment_variables() == (
+            False,
+            "auto",
+            None,
+        )
+
+    with mock.patch.dict(
+        os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "Unsupported"}
+    ):
+        with pytest.raises(ValueError) as excinfo:
+            AddressValidationClient._read_environment_variables()
+    assert (
+        str(excinfo.value)
+        == "Environment variable `GOOGLE_API_USE_CLIENT_CERTIFICATE` must be either `true` or `false`"
+    )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "never"}):
+        assert AddressValidationClient._read_environment_variables() == (
+            False,
+            "never",
+            None,
+        )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "always"}):
+        assert AddressValidationClient._read_environment_variables() == (
+            False,
+            "always",
+            None,
+        )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "auto"}):
+        assert AddressValidationClient._read_environment_variables() == (
+            False,
+            "auto",
+            None,
+        )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "Unsupported"}):
+        with pytest.raises(MutualTLSChannelError) as excinfo:
+            AddressValidationClient._read_environment_variables()
+    assert (
+        str(excinfo.value)
+        == "Environment variable `GOOGLE_API_USE_MTLS_ENDPOINT` must be `never`, `auto` or `always`"
+    )
+
+    with mock.patch.dict(os.environ, {"GOOGLE_CLOUD_UNIVERSE_DOMAIN": "foo.com"}):
+        assert AddressValidationClient._read_environment_variables() == (
+            False,
+            "auto",
+            "foo.com",
+        )
+
+
+def test__get_client_cert_source():
+    mock_provided_cert_source = mock.Mock()
+    mock_default_cert_source = mock.Mock()
+
+    assert AddressValidationClient._get_client_cert_source(None, False) is None
+    assert (
+        AddressValidationClient._get_client_cert_source(
+            mock_provided_cert_source, False
+        )
+        is None
+    )
+    assert (
+        AddressValidationClient._get_client_cert_source(mock_provided_cert_source, True)
+        == mock_provided_cert_source
+    )
+
+    with mock.patch(
+        "google.auth.transport.mtls.has_default_client_cert_source", return_value=True
+    ):
+        with mock.patch(
+            "google.auth.transport.mtls.default_client_cert_source",
+            return_value=mock_default_cert_source,
+        ):
+            assert (
+                AddressValidationClient._get_client_cert_source(None, True)
+                is mock_default_cert_source
+            )
+            assert (
+                AddressValidationClient._get_client_cert_source(
+                    mock_provided_cert_source, "true"
+                )
+                is mock_provided_cert_source
+            )
+
+
+@mock.patch.object(
+    AddressValidationClient,
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(AddressValidationClient),
+)
+@mock.patch.object(
+    AddressValidationAsyncClient,
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(AddressValidationAsyncClient),
+)
+def test__get_api_endpoint():
+    api_override = "foo.com"
+    mock_client_cert_source = mock.Mock()
+    default_universe = AddressValidationClient._DEFAULT_UNIVERSE
+    default_endpoint = AddressValidationClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+        UNIVERSE_DOMAIN=default_universe
+    )
+    mock_universe = "bar.com"
+    mock_endpoint = AddressValidationClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+        UNIVERSE_DOMAIN=mock_universe
+    )
+
+    assert (
+        AddressValidationClient._get_api_endpoint(
+            api_override, mock_client_cert_source, default_universe, "always"
+        )
+        == api_override
+    )
+    assert (
+        AddressValidationClient._get_api_endpoint(
+            None, mock_client_cert_source, default_universe, "auto"
+        )
+        == AddressValidationClient.DEFAULT_MTLS_ENDPOINT
+    )
+    assert (
+        AddressValidationClient._get_api_endpoint(None, None, default_universe, "auto")
+        == default_endpoint
+    )
+    assert (
+        AddressValidationClient._get_api_endpoint(
+            None, None, default_universe, "always"
+        )
+        == AddressValidationClient.DEFAULT_MTLS_ENDPOINT
+    )
+    assert (
+        AddressValidationClient._get_api_endpoint(
+            None, mock_client_cert_source, default_universe, "always"
+        )
+        == AddressValidationClient.DEFAULT_MTLS_ENDPOINT
+    )
+    assert (
+        AddressValidationClient._get_api_endpoint(None, None, mock_universe, "never")
+        == mock_endpoint
+    )
+    assert (
+        AddressValidationClient._get_api_endpoint(None, None, default_universe, "never")
+        == default_endpoint
+    )
+
+    with pytest.raises(MutualTLSChannelError) as excinfo:
+        AddressValidationClient._get_api_endpoint(
+            None, mock_client_cert_source, mock_universe, "auto"
+        )
+    assert (
+        str(excinfo.value)
+        == "mTLS is not supported in any universe other than googleapis.com."
+    )
+
+
+def test__get_universe_domain():
+    client_universe_domain = "foo.com"
+    universe_domain_env = "bar.com"
+
+    assert (
+        AddressValidationClient._get_universe_domain(
+            client_universe_domain, universe_domain_env
+        )
+        == client_universe_domain
+    )
+    assert (
+        AddressValidationClient._get_universe_domain(None, universe_domain_env)
+        == universe_domain_env
+    )
+    assert (
+        AddressValidationClient._get_universe_domain(None, None)
+        == AddressValidationClient._DEFAULT_UNIVERSE
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        AddressValidationClient._get_universe_domain("", None)
+    assert str(excinfo.value) == "Universe Domain cannot be an empty string."
+
+
 @pytest.mark.parametrize(
     "client_class,transport_name",
     [
         (AddressValidationClient, "grpc"),
         (AddressValidationAsyncClient, "grpc_asyncio"),
+        (AddressValidationClient, "rest"),
     ],
 )
 def test_address_validation_client_from_service_account_info(
@@ -111,7 +348,11 @@ def test_address_validation_client_from_service_account_info(
         assert client.transport._credentials == creds
         assert isinstance(client, client_class)
 
-        assert client.transport._host == ("addressvalidation.googleapis.com:443")
+        assert client.transport._host == (
+            "addressvalidation.googleapis.com:443"
+            if transport_name in ["grpc", "grpc_asyncio"]
+            else "https://addressvalidation.googleapis.com"
+        )
 
 
 @pytest.mark.parametrize(
@@ -119,6 +360,7 @@ def test_address_validation_client_from_service_account_info(
     [
         (transports.AddressValidationGrpcTransport, "grpc"),
         (transports.AddressValidationGrpcAsyncIOTransport, "grpc_asyncio"),
+        (transports.AddressValidationRestTransport, "rest"),
     ],
 )
 def test_address_validation_client_service_account_always_use_jwt(
@@ -144,6 +386,7 @@ def test_address_validation_client_service_account_always_use_jwt(
     [
         (AddressValidationClient, "grpc"),
         (AddressValidationAsyncClient, "grpc_asyncio"),
+        (AddressValidationClient, "rest"),
     ],
 )
 def test_address_validation_client_from_service_account_file(
@@ -166,13 +409,18 @@ def test_address_validation_client_from_service_account_file(
         assert client.transport._credentials == creds
         assert isinstance(client, client_class)
 
-        assert client.transport._host == ("addressvalidation.googleapis.com:443")
+        assert client.transport._host == (
+            "addressvalidation.googleapis.com:443"
+            if transport_name in ["grpc", "grpc_asyncio"]
+            else "https://addressvalidation.googleapis.com"
+        )
 
 
 def test_address_validation_client_get_transport_class():
     transport = AddressValidationClient.get_transport_class()
     available_transports = [
         transports.AddressValidationGrpcTransport,
+        transports.AddressValidationRestTransport,
     ]
     assert transport in available_transports
 
@@ -189,17 +437,18 @@ def test_address_validation_client_get_transport_class():
             transports.AddressValidationGrpcAsyncIOTransport,
             "grpc_asyncio",
         ),
+        (AddressValidationClient, transports.AddressValidationRestTransport, "rest"),
     ],
 )
 @mock.patch.object(
     AddressValidationClient,
-    "DEFAULT_ENDPOINT",
-    modify_default_endpoint(AddressValidationClient),
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(AddressValidationClient),
 )
 @mock.patch.object(
     AddressValidationAsyncClient,
-    "DEFAULT_ENDPOINT",
-    modify_default_endpoint(AddressValidationAsyncClient),
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(AddressValidationAsyncClient),
 )
 def test_address_validation_client_client_options(
     client_class, transport_class, transport_name
@@ -241,7 +490,9 @@ def test_address_validation_client_client_options(
             patched.assert_called_once_with(
                 credentials=None,
                 credentials_file=None,
-                host=client.DEFAULT_ENDPOINT,
+                host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                    UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                ),
                 scopes=None,
                 client_cert_source_for_mtls=None,
                 quota_project_id=None,
@@ -271,15 +522,23 @@ def test_address_validation_client_client_options(
     # Check the case api_endpoint is not provided and GOOGLE_API_USE_MTLS_ENDPOINT has
     # unsupported value.
     with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "Unsupported"}):
-        with pytest.raises(MutualTLSChannelError):
+        with pytest.raises(MutualTLSChannelError) as excinfo:
             client = client_class(transport=transport_name)
+    assert (
+        str(excinfo.value)
+        == "Environment variable `GOOGLE_API_USE_MTLS_ENDPOINT` must be `never`, `auto` or `always`"
+    )
 
     # Check the case GOOGLE_API_USE_CLIENT_CERTIFICATE has unsupported value.
     with mock.patch.dict(
         os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "Unsupported"}
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as excinfo:
             client = client_class(transport=transport_name)
+    assert (
+        str(excinfo.value)
+        == "Environment variable `GOOGLE_API_USE_CLIENT_CERTIFICATE` must be either `true` or `false`"
+    )
 
     # Check the case quota_project_id is provided
     options = client_options.ClientOptions(quota_project_id="octopus")
@@ -289,7 +548,9 @@ def test_address_validation_client_client_options(
         patched.assert_called_once_with(
             credentials=None,
             credentials_file=None,
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=None,
             client_cert_source_for_mtls=None,
             quota_project_id="octopus",
@@ -307,7 +568,9 @@ def test_address_validation_client_client_options(
         patched.assert_called_once_with(
             credentials=None,
             credentials_file=None,
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=None,
             client_cert_source_for_mtls=None,
             quota_project_id=None,
@@ -344,17 +607,29 @@ def test_address_validation_client_client_options(
             "grpc_asyncio",
             "false",
         ),
+        (
+            AddressValidationClient,
+            transports.AddressValidationRestTransport,
+            "rest",
+            "true",
+        ),
+        (
+            AddressValidationClient,
+            transports.AddressValidationRestTransport,
+            "rest",
+            "false",
+        ),
     ],
 )
 @mock.patch.object(
     AddressValidationClient,
-    "DEFAULT_ENDPOINT",
-    modify_default_endpoint(AddressValidationClient),
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(AddressValidationClient),
 )
 @mock.patch.object(
     AddressValidationAsyncClient,
-    "DEFAULT_ENDPOINT",
-    modify_default_endpoint(AddressValidationAsyncClient),
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(AddressValidationAsyncClient),
 )
 @mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "auto"})
 def test_address_validation_client_mtls_env_auto(
@@ -377,7 +652,9 @@ def test_address_validation_client_mtls_env_auto(
 
             if use_client_cert_env == "false":
                 expected_client_cert_source = None
-                expected_host = client.DEFAULT_ENDPOINT
+                expected_host = client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                    UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                )
             else:
                 expected_client_cert_source = client_cert_source_callback
                 expected_host = client.DEFAULT_MTLS_ENDPOINT
@@ -409,7 +686,9 @@ def test_address_validation_client_mtls_env_auto(
                     return_value=client_cert_source_callback,
                 ):
                     if use_client_cert_env == "false":
-                        expected_host = client.DEFAULT_ENDPOINT
+                        expected_host = client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                            UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                        )
                         expected_client_cert_source = None
                     else:
                         expected_host = client.DEFAULT_MTLS_ENDPOINT
@@ -443,7 +722,9 @@ def test_address_validation_client_mtls_env_auto(
                 patched.assert_called_once_with(
                     credentials=None,
                     credentials_file=None,
-                    host=client.DEFAULT_ENDPOINT,
+                    host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                        UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                    ),
                     scopes=None,
                     client_cert_source_for_mtls=None,
                     quota_project_id=None,
@@ -533,6 +814,115 @@ def test_address_validation_client_get_mtls_endpoint_and_cert_source(client_clas
                 assert api_endpoint == client_class.DEFAULT_MTLS_ENDPOINT
                 assert cert_source == mock_client_cert_source
 
+    # Check the case api_endpoint is not provided and GOOGLE_API_USE_MTLS_ENDPOINT has
+    # unsupported value.
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "Unsupported"}):
+        with pytest.raises(MutualTLSChannelError) as excinfo:
+            client_class.get_mtls_endpoint_and_cert_source()
+
+        assert (
+            str(excinfo.value)
+            == "Environment variable `GOOGLE_API_USE_MTLS_ENDPOINT` must be `never`, `auto` or `always`"
+        )
+
+    # Check the case GOOGLE_API_USE_CLIENT_CERTIFICATE has unsupported value.
+    with mock.patch.dict(
+        os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "Unsupported"}
+    ):
+        with pytest.raises(ValueError) as excinfo:
+            client_class.get_mtls_endpoint_and_cert_source()
+
+        assert (
+            str(excinfo.value)
+            == "Environment variable `GOOGLE_API_USE_CLIENT_CERTIFICATE` must be either `true` or `false`"
+        )
+
+
+@pytest.mark.parametrize(
+    "client_class", [AddressValidationClient, AddressValidationAsyncClient]
+)
+@mock.patch.object(
+    AddressValidationClient,
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(AddressValidationClient),
+)
+@mock.patch.object(
+    AddressValidationAsyncClient,
+    "_DEFAULT_ENDPOINT_TEMPLATE",
+    modify_default_endpoint_template(AddressValidationAsyncClient),
+)
+def test_address_validation_client_client_api_endpoint(client_class):
+    mock_client_cert_source = client_cert_source_callback
+    api_override = "foo.com"
+    default_universe = AddressValidationClient._DEFAULT_UNIVERSE
+    default_endpoint = AddressValidationClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+        UNIVERSE_DOMAIN=default_universe
+    )
+    mock_universe = "bar.com"
+    mock_endpoint = AddressValidationClient._DEFAULT_ENDPOINT_TEMPLATE.format(
+        UNIVERSE_DOMAIN=mock_universe
+    )
+
+    # If ClientOptions.api_endpoint is set and GOOGLE_API_USE_CLIENT_CERTIFICATE="true",
+    # use ClientOptions.api_endpoint as the api endpoint regardless.
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_CLIENT_CERTIFICATE": "true"}):
+        with mock.patch(
+            "google.auth.transport.requests.AuthorizedSession.configure_mtls_channel"
+        ):
+            options = client_options.ClientOptions(
+                client_cert_source=mock_client_cert_source, api_endpoint=api_override
+            )
+            client = client_class(
+                client_options=options,
+                credentials=ga_credentials.AnonymousCredentials(),
+            )
+            assert client.api_endpoint == api_override
+
+    # If ClientOptions.api_endpoint is not set and GOOGLE_API_USE_MTLS_ENDPOINT="never",
+    # use the _DEFAULT_ENDPOINT_TEMPLATE populated with GDU as the api endpoint.
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "never"}):
+        client = client_class(credentials=ga_credentials.AnonymousCredentials())
+        assert client.api_endpoint == default_endpoint
+
+    # If ClientOptions.api_endpoint is not set and GOOGLE_API_USE_MTLS_ENDPOINT="always",
+    # use the DEFAULT_MTLS_ENDPOINT as the api endpoint.
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "always"}):
+        client = client_class(credentials=ga_credentials.AnonymousCredentials())
+        assert client.api_endpoint == client_class.DEFAULT_MTLS_ENDPOINT
+
+    # If ClientOptions.api_endpoint is not set, GOOGLE_API_USE_MTLS_ENDPOINT="auto" (default),
+    # GOOGLE_API_USE_CLIENT_CERTIFICATE="false" (default), default cert source doesn't exist,
+    # and ClientOptions.universe_domain="bar.com",
+    # use the _DEFAULT_ENDPOINT_TEMPLATE populated with universe domain as the api endpoint.
+    options = client_options.ClientOptions()
+    universe_exists = hasattr(options, "universe_domain")
+    if universe_exists:
+        options = client_options.ClientOptions(universe_domain=mock_universe)
+        client = client_class(
+            client_options=options, credentials=ga_credentials.AnonymousCredentials()
+        )
+    else:
+        client = client_class(
+            client_options=options, credentials=ga_credentials.AnonymousCredentials()
+        )
+    assert client.api_endpoint == (
+        mock_endpoint if universe_exists else default_endpoint
+    )
+    assert client.universe_domain == (
+        mock_universe if universe_exists else default_universe
+    )
+
+    # If ClientOptions does not have a universe domain attribute and GOOGLE_API_USE_MTLS_ENDPOINT="never",
+    # use the _DEFAULT_ENDPOINT_TEMPLATE populated with GDU as the api endpoint.
+    options = client_options.ClientOptions()
+    if hasattr(options, "universe_domain"):
+        delattr(options, "universe_domain")
+    with mock.patch.dict(os.environ, {"GOOGLE_API_USE_MTLS_ENDPOINT": "never"}):
+        client = client_class(
+            client_options=options, credentials=ga_credentials.AnonymousCredentials()
+        )
+        assert client.api_endpoint == default_endpoint
+
 
 @pytest.mark.parametrize(
     "client_class,transport_class,transport_name",
@@ -543,6 +933,7 @@ def test_address_validation_client_get_mtls_endpoint_and_cert_source(client_clas
             transports.AddressValidationGrpcAsyncIOTransport,
             "grpc_asyncio",
         ),
+        (AddressValidationClient, transports.AddressValidationRestTransport, "rest"),
     ],
 )
 def test_address_validation_client_client_options_scopes(
@@ -558,7 +949,9 @@ def test_address_validation_client_client_options_scopes(
         patched.assert_called_once_with(
             credentials=None,
             credentials_file=None,
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=["1", "2"],
             client_cert_source_for_mtls=None,
             quota_project_id=None,
@@ -583,6 +976,12 @@ def test_address_validation_client_client_options_scopes(
             "grpc_asyncio",
             grpc_helpers_async,
         ),
+        (
+            AddressValidationClient,
+            transports.AddressValidationRestTransport,
+            "rest",
+            None,
+        ),
     ],
 )
 def test_address_validation_client_client_options_credentials_file(
@@ -597,7 +996,9 @@ def test_address_validation_client_client_options_credentials_file(
         patched.assert_called_once_with(
             credentials=None,
             credentials_file="credentials.json",
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=None,
             client_cert_source_for_mtls=None,
             quota_project_id=None,
@@ -657,7 +1058,9 @@ def test_address_validation_client_create_channel_credentials_file(
         patched.assert_called_once_with(
             credentials=None,
             credentials_file="credentials.json",
-            host=client.DEFAULT_ENDPOINT,
+            host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+            ),
             scopes=None,
             client_cert_source_for_mtls=None,
             quota_project_id=None,
@@ -723,27 +1126,121 @@ def test_validate_address(request_type, transport: str = "grpc"):
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == address_validation_service.ValidateAddressRequest()
+        request = address_validation_service.ValidateAddressRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, address_validation_service.ValidateAddressResponse)
     assert response.response_id == "response_id_value"
 
 
-def test_validate_address_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_validate_address_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = AddressValidationClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
     )
 
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = address_validation_service.ValidateAddressRequest(
+        previous_response_id="previous_response_id_value",
+        session_token="session_token_value",
+    )
+
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(type(client.transport.validate_address), "__call__") as call:
-        client.validate_address()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.validate_address(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == address_validation_service.ValidateAddressRequest()
+        assert args[0] == address_validation_service.ValidateAddressRequest(
+            previous_response_id="previous_response_id_value",
+            session_token="session_token_value",
+        )
+
+
+def test_validate_address_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = AddressValidationClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert client._transport.validate_address in client._transport._wrapped_methods
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.validate_address
+        ] = mock_rpc
+        request = {}
+        client.validate_address(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.validate_address(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_validate_address_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = AddressValidationAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.validate_address
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.validate_address
+        ] = mock_rpc
+
+        request = {}
+        await client.validate_address(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.validate_address(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -752,7 +1249,7 @@ async def test_validate_address_async(
     request_type=address_validation_service.ValidateAddressRequest,
 ):
     client = AddressValidationAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -773,7 +1270,8 @@ async def test_validate_address_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == address_validation_service.ValidateAddressRequest()
+        request = address_validation_service.ValidateAddressRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(response, address_validation_service.ValidateAddressResponse)
@@ -815,7 +1313,8 @@ def test_provide_validation_feedback(request_type, transport: str = "grpc"):
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls) == 1
         _, args, _ = call.mock_calls[0]
-        assert args[0] == address_validation_service.ProvideValidationFeedbackRequest()
+        request = address_validation_service.ProvideValidationFeedbackRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(
@@ -823,22 +1322,116 @@ def test_provide_validation_feedback(request_type, transport: str = "grpc"):
     )
 
 
-def test_provide_validation_feedback_empty_call():
-    # This test is a coverage failsafe to make sure that totally empty calls,
-    # i.e. request == None and no flattened fields passed, work.
+def test_provide_validation_feedback_non_empty_request_with_auto_populated_field():
+    # This test is a coverage failsafe to make sure that UUID4 fields are
+    # automatically populated, according to AIP-4235, with non-empty requests.
     client = AddressValidationClient(
         credentials=ga_credentials.AnonymousCredentials(),
         transport="grpc",
+    )
+
+    # Populate all string fields in the request which are not UUID4
+    # since we want to check that UUID4 are populated automatically
+    # if they meet the requirements of AIP 4235.
+    request = address_validation_service.ProvideValidationFeedbackRequest(
+        response_id="response_id_value",
     )
 
     # Mock the actual call within the gRPC stub, and fake the request.
     with mock.patch.object(
         type(client.transport.provide_validation_feedback), "__call__"
     ) as call:
-        client.provide_validation_feedback()
+        call.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client.provide_validation_feedback(request=request)
         call.assert_called()
         _, args, _ = call.mock_calls[0]
-        assert args[0] == address_validation_service.ProvideValidationFeedbackRequest()
+        assert args[0] == address_validation_service.ProvideValidationFeedbackRequest(
+            response_id="response_id_value",
+        )
+
+
+def test_provide_validation_feedback_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = AddressValidationClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="grpc",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._transport.provide_validation_feedback
+            in client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.provide_validation_feedback
+        ] = mock_rpc
+        request = {}
+        client.provide_validation_feedback(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.provide_validation_feedback(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_provide_validation_feedback_async_use_cached_wrapped_rpc(
+    transport: str = "grpc_asyncio",
+):
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method_async.wrap_method") as wrapper_fn:
+        client = AddressValidationAsyncClient(
+            credentials=async_anonymous_credentials(),
+            transport=transport,
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._client._transport.provide_validation_feedback
+            in client._client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.AsyncMock()
+        mock_rpc.return_value = mock.Mock()
+        client._client._transport._wrapped_methods[
+            client._client._transport.provide_validation_feedback
+        ] = mock_rpc
+
+        request = {}
+        await client.provide_validation_feedback(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        await client.provide_validation_feedback(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -847,7 +1440,7 @@ async def test_provide_validation_feedback_async(
     request_type=address_validation_service.ProvideValidationFeedbackRequest,
 ):
     client = AddressValidationAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
+        credentials=async_anonymous_credentials(),
         transport=transport,
     )
 
@@ -868,7 +1461,8 @@ async def test_provide_validation_feedback_async(
         # Establish that the underlying gRPC stub method was called.
         assert len(call.mock_calls)
         _, args, _ = call.mock_calls[0]
-        assert args[0] == address_validation_service.ProvideValidationFeedbackRequest()
+        request = address_validation_service.ProvideValidationFeedbackRequest()
+        assert args[0] == request
 
     # Establish that the response is the type that we expect.
     assert isinstance(
@@ -879,6 +1473,264 @@ async def test_provide_validation_feedback_async(
 @pytest.mark.asyncio
 async def test_provide_validation_feedback_async_from_dict():
     await test_provide_validation_feedback_async(request_type=dict)
+
+
+def test_validate_address_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = AddressValidationClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert client._transport.validate_address in client._transport._wrapped_methods
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.validate_address
+        ] = mock_rpc
+
+        request = {}
+        client.validate_address(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.validate_address(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+def test_validate_address_rest_required_fields(
+    request_type=address_validation_service.ValidateAddressRequest,
+):
+    transport_class = transports.AddressValidationRestTransport
+
+    request_init = {}
+    request = request_type(**request_init)
+    pb_request = request_type.pb(request)
+    jsonified_request = json.loads(
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
+    )
+
+    # verify fields with default values are dropped
+
+    unset_fields = transport_class(
+        credentials=ga_credentials.AnonymousCredentials()
+    ).validate_address._get_unset_required_fields(jsonified_request)
+    jsonified_request.update(unset_fields)
+
+    # verify required fields with default values are now present
+
+    unset_fields = transport_class(
+        credentials=ga_credentials.AnonymousCredentials()
+    ).validate_address._get_unset_required_fields(jsonified_request)
+    jsonified_request.update(unset_fields)
+
+    # verify required fields with non-default values are left alone
+
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+    request = request_type(**request_init)
+
+    # Designate an appropriate value for the returned response.
+    return_value = address_validation_service.ValidateAddressResponse()
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(Session, "request") as req:
+        # We need to mock transcode() because providing default values
+        # for required fields will fail the real version if the http_options
+        # expect actual values for those fields.
+        with mock.patch.object(path_template, "transcode") as transcode:
+            # A uri without fields and an empty body will force all the
+            # request fields to show up in the query_params.
+            pb_request = request_type.pb(request)
+            transcode_result = {
+                "uri": "v1/sample_method",
+                "method": "post",
+                "query_params": pb_request,
+            }
+            transcode_result["body"] = pb_request
+            transcode.return_value = transcode_result
+
+            response_value = Response()
+            response_value.status_code = 200
+
+            # Convert return value to protobuf type
+            return_value = address_validation_service.ValidateAddressResponse.pb(
+                return_value
+            )
+            json_return_value = json_format.MessageToJson(return_value)
+
+            response_value._content = json_return_value.encode("UTF-8")
+            req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+
+            response = client.validate_address(request)
+
+            expected_params = [("$alt", "json;enum-encoding=int")]
+            actual_params = req.call_args.kwargs["params"]
+            assert expected_params == actual_params
+
+
+def test_validate_address_rest_unset_required_fields():
+    transport = transports.AddressValidationRestTransport(
+        credentials=ga_credentials.AnonymousCredentials
+    )
+
+    unset_fields = transport.validate_address._get_unset_required_fields({})
+    assert set(unset_fields) == (set(()) & set(("address",)))
+
+
+def test_provide_validation_feedback_rest_use_cached_wrapped_rpc():
+    # Clients should use _prep_wrapped_messages to create cached wrapped rpcs,
+    # instead of constructing them on each call
+    with mock.patch("google.api_core.gapic_v1.method.wrap_method") as wrapper_fn:
+        client = AddressValidationClient(
+            credentials=ga_credentials.AnonymousCredentials(),
+            transport="rest",
+        )
+
+        # Should wrap all calls on client creation
+        assert wrapper_fn.call_count > 0
+        wrapper_fn.reset_mock()
+
+        # Ensure method has been cached
+        assert (
+            client._transport.provide_validation_feedback
+            in client._transport._wrapped_methods
+        )
+
+        # Replace cached wrapped function with mock
+        mock_rpc = mock.Mock()
+        mock_rpc.return_value.name = (
+            "foo"  # operation_request.operation in compute client(s) expect a string.
+        )
+        client._transport._wrapped_methods[
+            client._transport.provide_validation_feedback
+        ] = mock_rpc
+
+        request = {}
+        client.provide_validation_feedback(request)
+
+        # Establish that the underlying gRPC stub method was called.
+        assert mock_rpc.call_count == 1
+
+        client.provide_validation_feedback(request)
+
+        # Establish that a new wrapper was not created for this call
+        assert wrapper_fn.call_count == 0
+        assert mock_rpc.call_count == 2
+
+
+def test_provide_validation_feedback_rest_required_fields(
+    request_type=address_validation_service.ProvideValidationFeedbackRequest,
+):
+    transport_class = transports.AddressValidationRestTransport
+
+    request_init = {}
+    request_init["response_id"] = ""
+    request = request_type(**request_init)
+    pb_request = request_type.pb(request)
+    jsonified_request = json.loads(
+        json_format.MessageToJson(pb_request, use_integers_for_enums=False)
+    )
+
+    # verify fields with default values are dropped
+
+    unset_fields = transport_class(
+        credentials=ga_credentials.AnonymousCredentials()
+    ).provide_validation_feedback._get_unset_required_fields(jsonified_request)
+    jsonified_request.update(unset_fields)
+
+    # verify required fields with default values are now present
+
+    jsonified_request["responseId"] = "response_id_value"
+
+    unset_fields = transport_class(
+        credentials=ga_credentials.AnonymousCredentials()
+    ).provide_validation_feedback._get_unset_required_fields(jsonified_request)
+    jsonified_request.update(unset_fields)
+
+    # verify required fields with non-default values are left alone
+    assert "responseId" in jsonified_request
+    assert jsonified_request["responseId"] == "response_id_value"
+
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+    request = request_type(**request_init)
+
+    # Designate an appropriate value for the returned response.
+    return_value = address_validation_service.ProvideValidationFeedbackResponse()
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(Session, "request") as req:
+        # We need to mock transcode() because providing default values
+        # for required fields will fail the real version if the http_options
+        # expect actual values for those fields.
+        with mock.patch.object(path_template, "transcode") as transcode:
+            # A uri without fields and an empty body will force all the
+            # request fields to show up in the query_params.
+            pb_request = request_type.pb(request)
+            transcode_result = {
+                "uri": "v1/sample_method",
+                "method": "post",
+                "query_params": pb_request,
+            }
+            transcode_result["body"] = pb_request
+            transcode.return_value = transcode_result
+
+            response_value = Response()
+            response_value.status_code = 200
+
+            # Convert return value to protobuf type
+            return_value = (
+                address_validation_service.ProvideValidationFeedbackResponse.pb(
+                    return_value
+                )
+            )
+            json_return_value = json_format.MessageToJson(return_value)
+
+            response_value._content = json_return_value.encode("UTF-8")
+            req.return_value = response_value
+            req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+
+            response = client.provide_validation_feedback(request)
+
+            expected_params = [("$alt", "json;enum-encoding=int")]
+            actual_params = req.call_args.kwargs["params"]
+            assert expected_params == actual_params
+
+
+def test_provide_validation_feedback_rest_unset_required_fields():
+    transport = transports.AddressValidationRestTransport(
+        credentials=ga_credentials.AnonymousCredentials
+    )
+
+    unset_fields = transport.provide_validation_feedback._get_unset_required_fields({})
+    assert set(unset_fields) == (
+        set(())
+        & set(
+            (
+                "conclusion",
+                "responseId",
+            )
+        )
+    )
 
 
 def test_credentials_transport_error():
@@ -915,7 +1767,7 @@ def test_credentials_transport_error():
         )
 
     # It is an error to provide an api_key and a credential.
-    options = mock.Mock()
+    options = client_options.ClientOptions()
     options.api_key = "api_key"
     with pytest.raises(ValueError):
         client = AddressValidationClient(
@@ -962,6 +1814,7 @@ def test_transport_get_channel():
     [
         transports.AddressValidationGrpcTransport,
         transports.AddressValidationGrpcAsyncIOTransport,
+        transports.AddressValidationRestTransport,
     ],
 )
 def test_transport_adc(transport_class):
@@ -972,17 +1825,443 @@ def test_transport_adc(transport_class):
         adc.assert_called_once()
 
 
+def test_transport_kind_grpc():
+    transport = AddressValidationClient.get_transport_class("grpc")(
+        credentials=ga_credentials.AnonymousCredentials()
+    )
+    assert transport.kind == "grpc"
+
+
+def test_initialize_client_w_grpc():
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="grpc"
+    )
+    assert client is not None
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_validate_address_empty_call_grpc():
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.validate_address), "__call__") as call:
+        call.return_value = address_validation_service.ValidateAddressResponse()
+        client.validate_address(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = address_validation_service.ValidateAddressRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_provide_validation_feedback_empty_call_grpc():
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="grpc",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.provide_validation_feedback), "__call__"
+    ) as call:
+        call.return_value = (
+            address_validation_service.ProvideValidationFeedbackResponse()
+        )
+        client.provide_validation_feedback(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = address_validation_service.ProvideValidationFeedbackRequest()
+
+        assert args[0] == request_msg
+
+
+def test_transport_kind_grpc_asyncio():
+    transport = AddressValidationAsyncClient.get_transport_class("grpc_asyncio")(
+        credentials=async_anonymous_credentials()
+    )
+    assert transport.kind == "grpc_asyncio"
+
+
+def test_initialize_client_w_grpc_asyncio():
+    client = AddressValidationAsyncClient(
+        credentials=async_anonymous_credentials(), transport="grpc_asyncio"
+    )
+    assert client is not None
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_validate_address_empty_call_grpc_asyncio():
+    client = AddressValidationAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.validate_address), "__call__") as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            address_validation_service.ValidateAddressResponse(
+                response_id="response_id_value",
+            )
+        )
+        await client.validate_address(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = address_validation_service.ValidateAddressRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+@pytest.mark.asyncio
+async def test_provide_validation_feedback_empty_call_grpc_asyncio():
+    client = AddressValidationAsyncClient(
+        credentials=async_anonymous_credentials(),
+        transport="grpc_asyncio",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.provide_validation_feedback), "__call__"
+    ) as call:
+        # Designate an appropriate return value for the call.
+        call.return_value = grpc_helpers_async.FakeUnaryUnaryCall(
+            address_validation_service.ProvideValidationFeedbackResponse()
+        )
+        await client.provide_validation_feedback(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = address_validation_service.ProvideValidationFeedbackRequest()
+
+        assert args[0] == request_msg
+
+
+def test_transport_kind_rest():
+    transport = AddressValidationClient.get_transport_class("rest")(
+        credentials=ga_credentials.AnonymousCredentials()
+    )
+    assert transport.kind == "rest"
+
+
+def test_validate_address_rest_bad_request(
+    request_type=address_validation_service.ValidateAddressRequest,
+):
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.validate_address(request)
+
+
 @pytest.mark.parametrize(
-    "transport_name",
+    "request_type",
     [
-        "grpc",
+        address_validation_service.ValidateAddressRequest,
+        dict,
     ],
 )
-def test_transport_kind(transport_name):
-    transport = AddressValidationClient.get_transport_class(transport_name)(
-        credentials=ga_credentials.AnonymousCredentials(),
+def test_validate_address_rest_call_success(request_type):
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
     )
-    assert transport.kind == transport_name
+
+    # send a request that will satisfy transcoding
+    request_init = {}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = address_validation_service.ValidateAddressResponse(
+            response_id="response_id_value",
+        )
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = address_validation_service.ValidateAddressResponse.pb(
+            return_value
+        )
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.validate_address(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(response, address_validation_service.ValidateAddressResponse)
+    assert response.response_id == "response_id_value"
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_validate_address_rest_interceptors(null_interceptor):
+    transport = transports.AddressValidationRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.AddressValidationRestInterceptor(),
+    )
+    client = AddressValidationClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.AddressValidationRestInterceptor, "post_validate_address"
+    ) as post, mock.patch.object(
+        transports.AddressValidationRestInterceptor, "pre_validate_address"
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = address_validation_service.ValidateAddressRequest.pb(
+            address_validation_service.ValidateAddressRequest()
+        )
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = address_validation_service.ValidateAddressResponse.to_json(
+            address_validation_service.ValidateAddressResponse()
+        )
+        req.return_value.content = return_value
+
+        request = address_validation_service.ValidateAddressRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = address_validation_service.ValidateAddressResponse()
+
+        client.validate_address(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_provide_validation_feedback_rest_bad_request(
+    request_type=address_validation_service.ProvideValidationFeedbackRequest,
+):
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    # send a request that will satisfy transcoding
+    request_init = {}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a BadRequest error.
+    with mock.patch.object(Session, "request") as req, pytest.raises(
+        core_exceptions.BadRequest
+    ):
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        json_return_value = ""
+        response_value.json = mock.Mock(return_value={})
+        response_value.status_code = 400
+        response_value.request = mock.Mock()
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        client.provide_validation_feedback(request)
+
+
+@pytest.mark.parametrize(
+    "request_type",
+    [
+        address_validation_service.ProvideValidationFeedbackRequest,
+        dict,
+    ],
+)
+def test_provide_validation_feedback_rest_call_success(request_type):
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+
+    # send a request that will satisfy transcoding
+    request_init = {}
+    request = request_type(**request_init)
+
+    # Mock the http request call within the method and fake a response.
+    with mock.patch.object(type(client.transport._session), "request") as req:
+        # Designate an appropriate value for the returned response.
+        return_value = address_validation_service.ProvideValidationFeedbackResponse()
+
+        # Wrap the value into a proper Response obj
+        response_value = mock.Mock()
+        response_value.status_code = 200
+
+        # Convert return value to protobuf type
+        return_value = address_validation_service.ProvideValidationFeedbackResponse.pb(
+            return_value
+        )
+        json_return_value = json_format.MessageToJson(return_value)
+        response_value.content = json_return_value.encode("UTF-8")
+        req.return_value = response_value
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        response = client.provide_validation_feedback(request)
+
+    # Establish that the response is the type that we expect.
+    assert isinstance(
+        response, address_validation_service.ProvideValidationFeedbackResponse
+    )
+
+
+@pytest.mark.parametrize("null_interceptor", [True, False])
+def test_provide_validation_feedback_rest_interceptors(null_interceptor):
+    transport = transports.AddressValidationRestTransport(
+        credentials=ga_credentials.AnonymousCredentials(),
+        interceptor=None
+        if null_interceptor
+        else transports.AddressValidationRestInterceptor(),
+    )
+    client = AddressValidationClient(transport=transport)
+
+    with mock.patch.object(
+        type(client.transport._session), "request"
+    ) as req, mock.patch.object(
+        path_template, "transcode"
+    ) as transcode, mock.patch.object(
+        transports.AddressValidationRestInterceptor, "post_provide_validation_feedback"
+    ) as post, mock.patch.object(
+        transports.AddressValidationRestInterceptor, "pre_provide_validation_feedback"
+    ) as pre:
+        pre.assert_not_called()
+        post.assert_not_called()
+        pb_message = address_validation_service.ProvideValidationFeedbackRequest.pb(
+            address_validation_service.ProvideValidationFeedbackRequest()
+        )
+        transcode.return_value = {
+            "method": "post",
+            "uri": "my_uri",
+            "body": pb_message,
+            "query_params": pb_message,
+        }
+
+        req.return_value = mock.Mock()
+        req.return_value.status_code = 200
+        req.return_value.headers = {"header-1": "value-1", "header-2": "value-2"}
+        return_value = (
+            address_validation_service.ProvideValidationFeedbackResponse.to_json(
+                address_validation_service.ProvideValidationFeedbackResponse()
+            )
+        )
+        req.return_value.content = return_value
+
+        request = address_validation_service.ProvideValidationFeedbackRequest()
+        metadata = [
+            ("key", "val"),
+            ("cephalopod", "squid"),
+        ]
+        pre.return_value = request, metadata
+        post.return_value = (
+            address_validation_service.ProvideValidationFeedbackResponse()
+        )
+
+        client.provide_validation_feedback(
+            request,
+            metadata=[
+                ("key", "val"),
+                ("cephalopod", "squid"),
+            ],
+        )
+
+        pre.assert_called_once()
+        post.assert_called_once()
+
+
+def test_initialize_client_w_rest():
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    assert client is not None
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_validate_address_empty_call_rest():
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(type(client.transport.validate_address), "__call__") as call:
+        client.validate_address(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = address_validation_service.ValidateAddressRequest()
+
+        assert args[0] == request_msg
+
+
+# This test is a coverage failsafe to make sure that totally empty calls,
+# i.e. request == None and no flattened fields passed, work.
+def test_provide_validation_feedback_empty_call_rest():
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(),
+        transport="rest",
+    )
+
+    # Mock the actual call, and fake the request.
+    with mock.patch.object(
+        type(client.transport.provide_validation_feedback), "__call__"
+    ) as call:
+        client.provide_validation_feedback(request=None)
+
+        # Establish that the underlying stub method was called.
+        call.assert_called()
+        _, args, _ = call.mock_calls[0]
+        request_msg = address_validation_service.ProvideValidationFeedbackRequest()
+
+        assert args[0] == request_msg
 
 
 def test_transport_grpc_default():
@@ -1106,6 +2385,7 @@ def test_address_validation_transport_auth_adc(transport_class):
     [
         transports.AddressValidationGrpcTransport,
         transports.AddressValidationGrpcAsyncIOTransport,
+        transports.AddressValidationRestTransport,
     ],
 )
 def test_address_validation_transport_auth_gdch_credentials(transport_class):
@@ -1203,11 +2483,23 @@ def test_address_validation_grpc_transport_client_cert_source_for_mtls(transport
             )
 
 
+def test_address_validation_http_transport_client_cert_source_for_mtls():
+    cred = ga_credentials.AnonymousCredentials()
+    with mock.patch(
+        "google.auth.transport.requests.AuthorizedSession.configure_mtls_channel"
+    ) as mock_configure_mtls_channel:
+        transports.AddressValidationRestTransport(
+            credentials=cred, client_cert_source_for_mtls=client_cert_source_callback
+        )
+        mock_configure_mtls_channel.assert_called_once_with(client_cert_source_callback)
+
+
 @pytest.mark.parametrize(
     "transport_name",
     [
         "grpc",
         "grpc_asyncio",
+        "rest",
     ],
 )
 def test_address_validation_host_no_port(transport_name):
@@ -1218,7 +2510,11 @@ def test_address_validation_host_no_port(transport_name):
         ),
         transport=transport_name,
     )
-    assert client.transport._host == ("addressvalidation.googleapis.com:443")
+    assert client.transport._host == (
+        "addressvalidation.googleapis.com:443"
+        if transport_name in ["grpc", "grpc_asyncio"]
+        else "https://addressvalidation.googleapis.com"
+    )
 
 
 @pytest.mark.parametrize(
@@ -1226,6 +2522,7 @@ def test_address_validation_host_no_port(transport_name):
     [
         "grpc",
         "grpc_asyncio",
+        "rest",
     ],
 )
 def test_address_validation_host_with_port(transport_name):
@@ -1236,7 +2533,36 @@ def test_address_validation_host_with_port(transport_name):
         ),
         transport=transport_name,
     )
-    assert client.transport._host == ("addressvalidation.googleapis.com:8000")
+    assert client.transport._host == (
+        "addressvalidation.googleapis.com:8000"
+        if transport_name in ["grpc", "grpc_asyncio"]
+        else "https://addressvalidation.googleapis.com:8000"
+    )
+
+
+@pytest.mark.parametrize(
+    "transport_name",
+    [
+        "rest",
+    ],
+)
+def test_address_validation_client_transport_session_collision(transport_name):
+    creds1 = ga_credentials.AnonymousCredentials()
+    creds2 = ga_credentials.AnonymousCredentials()
+    client1 = AddressValidationClient(
+        credentials=creds1,
+        transport=transport_name,
+    )
+    client2 = AddressValidationClient(
+        credentials=creds2,
+        transport=transport_name,
+    )
+    session1 = client1.transport.validate_address._session
+    session2 = client2.transport.validate_address._session
+    assert session1 != session2
+    session1 = client1.transport.provide_validation_feedback._session
+    session2 = client2.transport.provide_validation_feedback._session
+    assert session1 != session2
 
 
 def test_address_validation_grpc_transport_channel():
@@ -1491,39 +2817,46 @@ def test_client_with_default_client_info():
         prep.assert_called_once_with(client_info)
 
 
-@pytest.mark.asyncio
-async def test_transport_close_async():
-    client = AddressValidationAsyncClient(
-        credentials=ga_credentials.AnonymousCredentials(),
-        transport="grpc_asyncio",
+def test_transport_close_grpc():
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="grpc"
     )
     with mock.patch.object(
-        type(getattr(client.transport, "grpc_channel")), "close"
+        type(getattr(client.transport, "_grpc_channel")), "close"
+    ) as close:
+        with client:
+            close.assert_not_called()
+        close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_transport_close_grpc_asyncio():
+    client = AddressValidationAsyncClient(
+        credentials=async_anonymous_credentials(), transport="grpc_asyncio"
+    )
+    with mock.patch.object(
+        type(getattr(client.transport, "_grpc_channel")), "close"
     ) as close:
         async with client:
             close.assert_not_called()
         close.assert_called_once()
 
 
-def test_transport_close():
-    transports = {
-        "grpc": "_grpc_channel",
-    }
-
-    for transport, close_name in transports.items():
-        client = AddressValidationClient(
-            credentials=ga_credentials.AnonymousCredentials(), transport=transport
-        )
-        with mock.patch.object(
-            type(getattr(client.transport, close_name)), "close"
-        ) as close:
-            with client:
-                close.assert_not_called()
-            close.assert_called_once()
+def test_transport_close_rest():
+    client = AddressValidationClient(
+        credentials=ga_credentials.AnonymousCredentials(), transport="rest"
+    )
+    with mock.patch.object(
+        type(getattr(client.transport, "_session")), "close"
+    ) as close:
+        with client:
+            close.assert_not_called()
+        close.assert_called_once()
 
 
 def test_client_ctx():
     transports = [
+        "rest",
         "grpc",
     ]
     for transport in transports:
@@ -1562,7 +2895,9 @@ def test_api_key_credentials(client_class, transport_class):
             patched.assert_called_once_with(
                 credentials=mock_cred,
                 credentials_file=None,
-                host=client.DEFAULT_ENDPOINT,
+                host=client._DEFAULT_ENDPOINT_TEMPLATE.format(
+                    UNIVERSE_DOMAIN=client._DEFAULT_UNIVERSE
+                ),
                 scopes=None,
                 client_cert_source_for_mtls=None,
                 quota_project_id=None,

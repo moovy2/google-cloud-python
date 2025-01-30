@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.type import interval_pb2  # type: ignore
@@ -25,6 +27,8 @@ __protobuf__ = proto.module(
         "TimeFilter",
         "PropertyFilter",
         "FileTypeFilter",
+        "CustomWeightsMetadata",
+        "WeightedSchemaProperty",
     },
 )
 
@@ -34,10 +38,53 @@ class DocumentQuery(proto.Message):
 
     Attributes:
         query (str):
-            The query string that matches against the
-            full text of the document and the searchable
-            properties. The maximum number of allowed
-            characters is 255.
+            The query string that matches against the full text of the
+            document and the searchable properties.
+
+            The query partially supports `Google AIP style
+            syntax <https://google.aip.dev/160>`__. Specifically, the
+            query supports literals, logical operators, negation
+            operators, comparison operators, and functions.
+
+            Literals: A bare literal value (examples: "42", "Hugo") is a
+            value to be matched against. It searches over the full text
+            of the document and the searchable properties.
+
+            Logical operators: "AND", "and", "OR", and "or" are binary
+            logical operators (example: "engineer OR developer").
+
+            Negation operators: "NOT" and "!" are negation operators
+            (example: "NOT software").
+
+            Comparison operators: support the binary comparison
+            operators =, !=, <, >, <= and >= for string, numeric, enum,
+            boolean. Also support like operator ``~~`` for string. It
+            provides semantic search functionality by parsing, stemming
+            and doing synonyms expansion against the input query.
+
+            To specify a property in the query, the left hand side
+            expression in the comparison must be the property ID
+            including the parent. The right hand side must be literals.
+            For example: ""projects/123/locations/us".property_a < 1"
+            matches results whose "property_a" is less than 1 in project
+            123 and us location. The literals and comparison expression
+            can be connected in a single query (example: "software
+            engineer "projects/123/locations/us".salary > 100").
+
+            Functions: supported functions are
+            ``LOWER([property_name])`` to perform a case insensitive
+            match and ``EMPTY([property_name])`` to filter on the
+            existence of a key.
+
+            Support nested expressions connected using parenthesis and
+            logical operators. The default logical operators is ``AND``
+            if there is no operators between expressions.
+
+            The query can be used with other filters e.g.
+            ``time_filters`` and ``folder_name_filter``. They are
+            connected with ``AND`` operator under the hood.
+
+            The maximum number of allowed characters is 255.
         is_nl_query (bool):
             Experimental, do not use. If the query is a natural language
             question. False by default. If true, then the
@@ -103,6 +150,9 @@ class DocumentQuery(proto.Message):
             Search all the documents under this specified folder.
             Format:
             projects/{project_number}/locations/{location}/documents/{document_id}.
+        document_name_filter (MutableSequence[str]):
+            Search the documents in the list. Format:
+            projects/{project_number}/locations/{location}/documents/{document_id}.
         query_context (MutableSequence[str]):
             For custom synonyms.
             Customers provide the synonyms based on context.
@@ -122,6 +172,14 @@ class DocumentQuery(proto.Message):
             If multiple values are specified, documents
             within the search results may be associated with
             any of the specified creators.
+        custom_weights_metadata (google.cloud.contentwarehouse_v1.types.CustomWeightsMetadata):
+            To support the custom weighting across
+            document schemas, customers need to provide the
+            properties to be used to boost the ranking in
+            the search request. For a search query with
+            CustomWeightsMetadata specified, only the
+            RetrievalImportance for the properties in the
+            CustomWeightsMetadata will be honored.
     """
 
     query: str = proto.Field(
@@ -159,6 +217,10 @@ class DocumentQuery(proto.Message):
         proto.STRING,
         number=9,
     )
+    document_name_filter: MutableSequence[str] = proto.RepeatedField(
+        proto.STRING,
+        number=14,
+    )
     query_context: MutableSequence[str] = proto.RepeatedField(
         proto.STRING,
         number=10,
@@ -166,6 +228,11 @@ class DocumentQuery(proto.Message):
     document_creator_filter: MutableSequence[str] = proto.RepeatedField(
         proto.STRING,
         number=11,
+    )
+    custom_weights_metadata: "CustomWeightsMetadata" = proto.Field(
+        proto.MESSAGE,
+        number=13,
+        message="CustomWeightsMetadata",
     )
 
 
@@ -182,10 +249,22 @@ class TimeFilter(proto.Message):
     """
 
     class TimeField(proto.Enum):
-        r"""Time field used in TimeFilter."""
+        r"""Time field used in TimeFilter.
+
+        Values:
+            TIME_FIELD_UNSPECIFIED (0):
+                Default value.
+            CREATE_TIME (1):
+                Earliest document create time.
+            UPDATE_TIME (2):
+                Latest document update time.
+            DISPOSITION_TIME (3):
+                Time when document becomes mutable again.
+        """
         TIME_FIELD_UNSPECIFIED = 0
         CREATE_TIME = 1
         UPDATE_TIME = 2
+        DISPOSITION_TIME = 3
 
     time_range: interval_pb2.Interval = proto.Field(
         proto.MESSAGE,
@@ -275,16 +354,71 @@ class FileTypeFilter(proto.Message):
     """
 
     class FileType(proto.Enum):
-        r"""Representation of the types of files."""
+        r"""Representation of the types of files.
+
+        Values:
+            FILE_TYPE_UNSPECIFIED (0):
+                Default document type. If set, disables the
+                filter.
+            ALL (1):
+                Returns all document types, including
+                folders.
+            FOLDER (2):
+                Returns only folders.
+            DOCUMENT (3):
+                Returns only non-folder documents.
+            ROOT_FOLDER (4):
+                Returns only root folders
+        """
         FILE_TYPE_UNSPECIFIED = 0
         ALL = 1
         FOLDER = 2
         DOCUMENT = 3
+        ROOT_FOLDER = 4
 
     file_type: FileType = proto.Field(
         proto.ENUM,
         number=1,
         enum=FileType,
+    )
+
+
+class CustomWeightsMetadata(proto.Message):
+    r"""To support the custom weighting across document schemas.
+
+    Attributes:
+        weighted_schema_properties (MutableSequence[google.cloud.contentwarehouse_v1.types.WeightedSchemaProperty]):
+            List of schema and property name. Allows a
+            maximum of 10 schemas to be specified for
+            relevance boosting.
+    """
+
+    weighted_schema_properties: MutableSequence[
+        "WeightedSchemaProperty"
+    ] = proto.RepeatedField(
+        proto.MESSAGE,
+        number=1,
+        message="WeightedSchemaProperty",
+    )
+
+
+class WeightedSchemaProperty(proto.Message):
+    r"""Specifies the schema property name.
+
+    Attributes:
+        document_schema_name (str):
+            The document schema name.
+        property_names (MutableSequence[str]):
+            The property definition names in the schema.
+    """
+
+    document_schema_name: str = proto.Field(
+        proto.STRING,
+        number=1,
+    )
+    property_names: MutableSequence[str] = proto.RepeatedField(
+        proto.STRING,
+        number=2,
     )
 
 

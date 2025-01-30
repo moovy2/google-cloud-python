@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 import proto  # type: ignore
@@ -28,8 +30,11 @@ __protobuf__ = proto.module(
 class SpeedReadingInterval(proto.Message):
     r"""Traffic density indicator on a contiguous segment of a polyline or
     path. Given a path with points P_0, P_1, ... , P_N (zero-based
-    index), the SpeedReadingInterval defines an interval and describes
-    its traffic using the following categories.
+    index), the ``SpeedReadingInterval`` defines an interval and
+    describes its traffic using the following categories.
+
+
+    .. _oneof: https://proto-plus-python.readthedocs.io/en/stable/fields.html#oneofs-mutually-exclusive-fields
 
     Attributes:
         start_polyline_point_index (int):
@@ -44,10 +49,23 @@ class SpeedReadingInterval(proto.Message):
             This field is a member of `oneof`_ ``_end_polyline_point_index``.
         speed (google.maps.routing_v2.types.SpeedReadingInterval.Speed):
             Traffic speed in this interval.
+
+            This field is a member of `oneof`_ ``speed_type``.
     """
 
     class Speed(proto.Enum):
-        r"""The classification of polyline speed based on traffic data."""
+        r"""The classification of polyline speed based on traffic data.
+
+        Values:
+            SPEED_UNSPECIFIED (0):
+                Default value. This value is unused.
+            NORMAL (1):
+                Normal speed, no slowdown is detected.
+            SLOW (2):
+                Slowdown detected, but no traffic jam formed.
+            TRAFFIC_JAM (3):
+                Traffic jam detected.
+        """
         SPEED_UNSPECIFIED = 0
         NORMAL = 1
         SLOW = 2
@@ -66,6 +84,7 @@ class SpeedReadingInterval(proto.Message):
     speed: Speed = proto.Field(
         proto.ENUM,
         number=3,
+        oneof="speed_type",
         enum=Speed,
     )
 

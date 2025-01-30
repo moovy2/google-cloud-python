@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import annotations
+
 from typing import MutableMapping, MutableSequence
 
 from google.protobuf import timestamp_pb2  # type: ignore
@@ -125,6 +127,7 @@ class ListLinkedSourcesRequest(proto.Message):
             The maximum number of document-links to
             return. The service may return fewer than this
             value.
+
             If unspecified, at most 50 document-links will
             be returned. The maximum value is 1000; values
             above 1000 will be coerced to 1000.
@@ -190,7 +193,18 @@ class DocumentLink(proto.Message):
     """
 
     class State(proto.Enum):
-        r"""The state of a document-link."""
+        r"""The state of a document-link.
+
+        Values:
+            STATE_UNSPECIFIED (0):
+                Unknown state of documentlink.
+            ACTIVE (1):
+                The documentlink has both source and target
+                documents detected.
+            SOFT_DELETED (2):
+                Target document is deleted, and mark the
+                documentlink as soft-deleted.
+        """
         STATE_UNSPECIFIED = 0
         ACTIVE = 1
         SOFT_DELETED = 2
