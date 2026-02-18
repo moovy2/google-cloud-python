@@ -31,7 +31,7 @@ For a list of all ``google-cloud-error-reporting`` releases:
 .. toctree::
   :maxdepth: 2
 
-  changelog
+  CHANGELOG
 
 .. toctree::
    :hidden:
