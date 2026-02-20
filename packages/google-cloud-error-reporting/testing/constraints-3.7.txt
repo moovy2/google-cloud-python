@@ -6,6 +6,8 @@
 # Then this file should have google-cloud-foo==1.14.0
 google-api-core==1.34.0
 google-auth==2.14.1
+# cryptography is a direct dependency of google-auth
+cryptography==38.0.3
 proto-plus==1.22.0
 protobuf==3.20.2
 google-cloud-logging==1.14.0
