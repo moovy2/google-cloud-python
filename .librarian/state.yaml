@@ -1569,6 +1569,7 @@ libraries:
       - ^packages/google-cloud-error-reporting/docs/errorreporting_v1beta1
       - ^packages/google-cloud-error-reporting/docs/multiprocessing.rst
       - ^packages/google-cloud-error-reporting/docs/conf.py
+      - ^packages/google-cloud-error-reporting/docs/index.rst
       - ^packages/google-cloud-error-reporting/docs/README.rst
       - ^packages/google-cloud-error-reporting/docs/summary_overview.md
       - ^packages/google-cloud-error-reporting/tests/unit/gapic
