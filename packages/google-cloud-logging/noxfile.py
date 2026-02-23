@@ -510,6 +510,67 @@ def prerelease_deps(session, protobuf_implementation):
         )
 
 @nox.session(python=DEFAULT_PYTHON_VERSION)
-def core_deps_from_source(session):
-    """Run the test suite installing dependencies from source."""
-    default(session, prerelease=True)
+@nox.parametrize(
+    "protobuf_implementation",
+    ["python", "upb"],
+)
+def core_deps_from_source(session, protobuf_implementation):
+    """Run all tests with local versions of core dependencies installed,
+    rather than pulling core dependencies from PyPI.
+    """
+
+    # Install all dependencies
+    session.install(".")
+
+    # Install dependencies for the unit test environment
+    unit_deps_all = UNIT_TEST_STANDARD_DEPENDENCIES + UNIT_TEST_EXTERNAL_DEPENDENCIES
+    session.install(*unit_deps_all)
+
+    # Install dependencies for the system test environment
+    system_deps_all = (
+        SYSTEM_TEST_STANDARD_DEPENDENCIES
+        + SYSTEM_TEST_EXTERNAL_DEPENDENCIES
+        + SYSTEM_TEST_EXTRAS
+    )
+    session.install(*system_deps_all)
+
+    # Because we test minimum dependency versions on the minimum Python
+    # version, the first version we test with in the unit tests sessions has a
+    # constraints file containing all dependencies and extras that should be installed.
+    with open(
+        CURRENT_DIRECTORY
+        / "testing"
+        / f"constraints-{UNIT_TEST_PYTHON_VERSIONS[0]}.txt",
+        encoding="utf-8",
+    ) as constraints_file:
+        constraints_text = constraints_file.read()
+
+    # Ignore leading whitespace and comment lines.
+    constraints_deps = [
+        match.group(1)
+        for match in re.finditer(
+            r"^\s*(\S+)(?===\S+)", constraints_text, flags=re.MULTILINE
+        )
+    ]
+
+    # Install dependencies specified in `testing/constraints-X.txt`.
+    session.install(*constraints_deps)
+
+    core_dependencies_from_source = [
+        "googleapis-common-protos @ git+https://github.com/googleapis/google-cloud-python#egg=googleapis-common-protos&subdirectory=packages/googleapis-common-protos",
+        "google-api-core @ git+https://github.com/googleapis/google-cloud-python#egg=google-api-core&subdirectory=packages/google-api-core",
+        "google-auth @ git+https://github.com/googleapis/google-auth-library-python.git",
+        "grpc-google-iam-v1 @ git+https://github.com/googleapis/google-cloud-python#egg=grpc-google-iam-v1&subdirectory=packages/grpc-google-iam-v1",
+        "proto-plus @ git+https://github.com/googleapis/google-cloud-python#egg=proto-plus&subdirectory=packages/proto-plus",
+    ]
+
+    for dep in core_dependencies_from_source:
+        session.install(dep, "--ignore-installed", "--no-deps")
+
+    session.run(
+        "py.test",
+        "tests/unit",
+        env={
+            "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION": protobuf_implementation,
+        },
+    )
