@@ -580,6 +580,7 @@ def core_deps_from_source(session, protobuf_implementation):
         },
     )
 
+
 @nox.session(python=ALL_PYTHON)
 def mypy(session):
     """Run the type checker."""
