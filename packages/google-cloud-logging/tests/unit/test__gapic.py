@@ -40,7 +40,11 @@ class Test_LoggingAPI(unittest.TestCase):
 
     @staticmethod
     def make_logging_api():
-        gapic_client = LoggingServiceV2Client()
+        # Create a dummy credentials object to help ensure unit test isolation
+        creds = mock.Mock(spec=auth_credentials.Credentials)
+    
+        # Pass those credentials to the GAPIC client
+        gapic_client = LoggingServiceV2Client(credentials=creds)
         handwritten_client = mock.Mock()
         api = _gapic._LoggingAPI(gapic_client, handwritten_client)
         return api
@@ -210,7 +214,11 @@ class Test_SinksAPI(unittest.TestCase):
 
     @staticmethod
     def make_sinks_api():
-        gapic_client = ConfigServiceV2Client()
+        # Create a dummy credentials object to help ensure unit test isolation
+        creds = mock.Mock(spec=auth_credentials.Credentials)
+    
+        # Pass those credentials to the GAPIC client
+        gapic_client = ConfigServiceV2Client(credentials=creds)
         handwritten_client = mock.Mock()
         api = _gapic._SinksAPI(gapic_client, handwritten_client)
         return api
@@ -418,7 +426,11 @@ class Test_MetricsAPI(unittest.TestCase):
 
     @staticmethod
     def make_metrics_api():
-        gapic_client = MetricsServiceV2Client()
+        # Create a dummy credentials object to help ensure unit test isolation
+        creds = mock.Mock(spec=auth_credentials.Credentials)
+    
+        # Pass those credentials to the GAPIC client
+        gapic_client = MetricsServiceV2Client(credentials=creds)
         handwritten_client = mock.Mock()
         api = _gapic._MetricsAPI(gapic_client, handwritten_client)
         return api
