@@ -22,21 +22,19 @@ try:
 except ImportError:  # pragma: NO COVER
     import mock
 
-import grpc
-from grpc.experimental import aio
-from collections.abc import Iterable, AsyncIterable
-from google.protobuf import json_format
 import json
 import math
+from collections.abc import AsyncIterable, Iterable, Mapping, Sequence
+
+import grpc
 import pytest
-from collections.abc import Sequence, Mapping
 from google.api_core import api_core_version
-from proto.marshal.rules.dates import DurationRule, TimestampRule
-from proto.marshal.rules import wrappers
-from requests import Response
-from requests import Request, PreparedRequest
-from requests.sessions import Session
 from google.protobuf import json_format
+from grpc.experimental import aio
+from proto.marshal.rules import wrappers
+from proto.marshal.rules.dates import DurationRule, TimestampRule
+from requests import PreparedRequest, Request, Response
+from requests.sessions import Session
 
 try:
     from google.auth.aio import credentials as ga_credentials_async
@@ -45,27 +43,26 @@ try:
 except ImportError:  # pragma: NO COVER
     HAS_GOOGLE_AUTH_AIO = False
 
-from google.api_core import client_options
+import google.auth
+from google.api_core import (
+    client_options,
+    gapic_v1,
+    grpc_helpers,
+    grpc_helpers_async,
+    path_template,
+)
 from google.api_core import exceptions as core_exceptions
-from google.api_core import gapic_v1
-from google.api_core import grpc_helpers
-from google.api_core import grpc_helpers_async
-from google.api_core import path_template
 from google.api_core import retry as retries
 from google.auth import credentials as ga_credentials
 from google.auth.exceptions import MutualTLSChannelError
+from google.oauth2 import service_account
+
 from google.cloud.errorreporting_v1beta1.services.error_group_service import (
     ErrorGroupServiceAsyncClient,
-)
-from google.cloud.errorreporting_v1beta1.services.error_group_service import (
     ErrorGroupServiceClient,
+    transports,
 )
-from google.cloud.errorreporting_v1beta1.services.error_group_service import transports
-from google.cloud.errorreporting_v1beta1.types import common
-from google.cloud.errorreporting_v1beta1.types import error_group_service
-from google.oauth2 import service_account
-import google.auth
-
+from google.cloud.errorreporting_v1beta1.types import common, error_group_service
 
 CRED_INFO_JSON = {
     "credential_source": "/path/to/file",
@@ -1327,9 +1324,7 @@ def test_error_group_service_client_create_channel_credentials_file(
         google.auth, "load_credentials_from_file", autospec=True
     ) as load_creds, mock.patch.object(
         google.auth, "default", autospec=True
-    ) as adc, mock.patch.object(
-        grpc_helpers, "create_channel"
-    ) as create_channel:
+    ) as adc, mock.patch.object(grpc_helpers, "create_channel") as create_channel:
         creds = ga_credentials.AnonymousCredentials()
         file_creds = ga_credentials.AnonymousCredentials()
         load_creds.return_value = (file_creds, None)

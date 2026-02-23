@@ -19,20 +19,18 @@ import pickle
 import warnings
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
-from google.api_core import grpc_helpers
-from google.api_core import gapic_v1
 import google.auth  # type: ignore
+import google.protobuf.message
+import grpc  # type: ignore
+import proto  # type: ignore
+from google.api_core import gapic_v1, grpc_helpers
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.auth.transport.grpc import SslCredentials  # type: ignore
 from google.protobuf.json_format import MessageToJson
-import google.protobuf.message
 
-import grpc  # type: ignore
-import proto  # type: ignore
+from google.cloud.errorreporting_v1beta1.types import common, error_group_service
 
-from google.cloud.errorreporting_v1beta1.types import common
-from google.cloud.errorreporting_v1beta1.types import error_group_service
-from .base import ErrorGroupServiceTransport, DEFAULT_CLIENT_INFO
+from .base import DEFAULT_CLIENT_INFO, ErrorGroupServiceTransport
 
 try:
     from google.api_core import client_logging  # type: ignore

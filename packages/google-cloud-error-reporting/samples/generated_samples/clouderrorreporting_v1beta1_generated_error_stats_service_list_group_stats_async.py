@@ -50,4 +50,5 @@ async def sample_list_group_stats():
     async for response in page_result:
         print(response)
 
+
 # [END clouderrorreporting_v1beta1_generated_ErrorStatsService_ListGroupStats_async]

@@ -39,13 +39,13 @@ def sample_update_group():
     client = errorreporting_v1beta1.ErrorGroupServiceClient()
 
     # Initialize request argument(s)
-    request = errorreporting_v1beta1.UpdateGroupRequest(
-    )
+    request = errorreporting_v1beta1.UpdateGroupRequest()
 
     # Make the request
     response = client.update_group(request=request)
 
     # Handle the response
     print(response)
+
 
 # [END clouderrorreporting_v1beta1_generated_ErrorGroupService_UpdateGroup_sync]

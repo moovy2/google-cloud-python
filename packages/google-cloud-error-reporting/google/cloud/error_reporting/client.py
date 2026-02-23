@@ -29,9 +29,10 @@ else:
     _HAVE_GRPC = True
 
 from google.cloud.client import ClientWithProject
+from google.cloud.environment_vars import DISABLE_GRPC
+
 from google.cloud.error_reporting import gapic_version
 from google.cloud.error_reporting._logging import _ErrorReportingLoggingAPI
-from google.cloud.environment_vars import DISABLE_GRPC
 
 __version__ = gapic_version.__version__
 

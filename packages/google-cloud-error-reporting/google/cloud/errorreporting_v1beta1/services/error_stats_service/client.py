@@ -13,15 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from collections import OrderedDict
-from http import HTTPStatus
 import json
 import logging as std_logging
 import os
 import re
+import warnings
+from collections import OrderedDict
+from http import HTTPStatus
 from typing import (
-    Dict,
     Callable,
+    Dict,
     Mapping,
     MutableMapping,
     MutableSequence,
@@ -32,20 +33,19 @@ from typing import (
     Union,
     cast,
 )
-import warnings
 
-from google.cloud.errorreporting_v1beta1 import gapic_version as package_version
-
+import google.protobuf
 from google.api_core import client_options as client_options_lib
 from google.api_core import exceptions as core_exceptions
 from google.api_core import gapic_v1
 from google.api_core import retry as retries
 from google.auth import credentials as ga_credentials  # type: ignore
+from google.auth.exceptions import MutualTLSChannelError  # type: ignore
 from google.auth.transport import mtls  # type: ignore
 from google.auth.transport.grpc import SslCredentials  # type: ignore
-from google.auth.exceptions import MutualTLSChannelError  # type: ignore
 from google.oauth2 import service_account  # type: ignore
-import google.protobuf
+
+from google.cloud.errorreporting_v1beta1 import gapic_version as package_version
 
 try:
     OptionalRetry = Union[retries.Retry, gapic_v1.method._MethodDefault, None]
@@ -62,9 +62,9 @@ except ImportError:  # pragma: NO COVER
 _LOGGER = std_logging.getLogger(__name__)
 
 from google.cloud.errorreporting_v1beta1.services.error_stats_service import pagers
-from google.cloud.errorreporting_v1beta1.types import common
-from google.cloud.errorreporting_v1beta1.types import error_stats_service
-from .transports.base import ErrorStatsServiceTransport, DEFAULT_CLIENT_INFO
+from google.cloud.errorreporting_v1beta1.types import common, error_stats_service
+
+from .transports.base import DEFAULT_CLIENT_INFO, ErrorStatsServiceTransport
 from .transports.grpc import ErrorStatsServiceGrpcTransport
 from .transports.grpc_asyncio import ErrorStatsServiceGrpcAsyncIOTransport
 from .transports.rest import ErrorStatsServiceRestTransport
@@ -78,9 +78,7 @@ class ErrorStatsServiceClientMeta(type):
     objects.
     """
 
-    _transport_registry = (
-        OrderedDict()
-    )  # type: Dict[str, Type[ErrorStatsServiceTransport]]
+    _transport_registry = OrderedDict()  # type: Dict[str, Type[ErrorStatsServiceTransport]]
     _transport_registry["grpc"] = ErrorStatsServiceGrpcTransport
     _transport_registry["grpc_asyncio"] = ErrorStatsServiceGrpcAsyncIOTransport
     _transport_registry["rest"] = ErrorStatsServiceRestTransport
@@ -660,8 +658,7 @@ class ErrorStatsServiceClient(metaclass=ErrorStatsServiceClientMeta):
                 )
             if self._client_options.scopes:
                 raise ValueError(
-                    "When providing a transport instance, provide its scopes "
-                    "directly."
+                    "When providing a transport instance, provide its scopes directly."
                 )
             self._transport = cast(ErrorStatsServiceTransport, transport)
             self._api_endpoint = self._transport.host

@@ -51,4 +51,5 @@ async def sample_list_events():
     async for response in page_result:
         print(response)
 
+
 # [END clouderrorreporting_v1beta1_generated_ErrorStatsService_ListEvents_async]

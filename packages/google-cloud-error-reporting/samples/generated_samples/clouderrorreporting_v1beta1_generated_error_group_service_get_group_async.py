@@ -49,4 +49,5 @@ async def sample_get_group():
     # Handle the response
     print(response)
 
+
 # [END clouderrorreporting_v1beta1_generated_ErrorGroupService_GetGroup_async]

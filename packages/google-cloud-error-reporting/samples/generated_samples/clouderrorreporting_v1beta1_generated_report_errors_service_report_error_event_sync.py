@@ -53,4 +53,5 @@ def sample_report_error_event():
     # Handle the response
     print(response)
 
+
 # [END clouderrorreporting_v1beta1_generated_ReportErrorsService_ReportErrorEvent_sync]

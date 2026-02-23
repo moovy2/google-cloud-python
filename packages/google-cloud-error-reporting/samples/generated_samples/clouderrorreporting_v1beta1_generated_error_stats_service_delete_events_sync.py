@@ -49,4 +49,5 @@ def sample_delete_events():
     # Handle the response
     print(response)
 
+
 # [END clouderrorreporting_v1beta1_generated_ErrorStatsService_DeleteEvents_sync]

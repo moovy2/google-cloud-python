@@ -16,19 +16,17 @@
 import abc
 from typing import Awaitable, Callable, Dict, Optional, Sequence, Union
 
-from google.cloud.errorreporting_v1beta1 import gapic_version as package_version
-
-import google.auth  # type: ignore
 import google.api_core
+import google.auth  # type: ignore
+import google.protobuf
 from google.api_core import exceptions as core_exceptions
 from google.api_core import gapic_v1
 from google.api_core import retry as retries
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.oauth2 import service_account  # type: ignore
-import google.protobuf
 
-from google.cloud.errorreporting_v1beta1.types import common
-from google.cloud.errorreporting_v1beta1.types import error_group_service
+from google.cloud.errorreporting_v1beta1 import gapic_version as package_version
+from google.cloud.errorreporting_v1beta1.types import common, error_group_service
 
 DEFAULT_CLIENT_INFO = gapic_v1.client_info.ClientInfo(
     gapic_version=package_version.__version__

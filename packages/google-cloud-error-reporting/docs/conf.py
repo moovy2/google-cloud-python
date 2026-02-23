@@ -28,7 +28,6 @@ import logging
 import os
 import shlex
 import sys
-import logging
 from typing import Any
 
 # If extensions (or modules to document with autodoc) are in another directory,
