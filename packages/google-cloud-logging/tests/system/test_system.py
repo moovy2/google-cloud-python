@@ -723,7 +723,7 @@ class TestLogging(unittest.TestCase):
     def test_log_handler_close(self):
         import multiprocessing
         from google.cloud import logging as cloud_logging  # Ensure import is available
-        
+
         ctx = multiprocessing.get_context("fork")
         LOG_MESSAGE = "This is a test of handler.close before exiting."
         LOGGER_NAME = "close-test"
@@ -740,9 +740,9 @@ class TestLogging(unittest.TestCase):
             # Create a fresh client inside the child process to avoid gRPC fork issues.
             # Do not use the shared Config.CLIENT here.
             sub_client = cloud_logging.Client()
-            
+
             handler = CloudLoggingHandler(
-                Config.CLIENT, name=handler_name, transport=BackgroundThreadTransport
+                sub_client, name=handler_name, transport=BackgroundThreadTransport
             )
             cloud_logger = logging.getLogger(LOGGER_NAME)
             cloud_logger.addHandler(handler)
@@ -759,34 +759,34 @@ class TestLogging(unittest.TestCase):
     def test_log_client_flush_handlers(self):
         import multiprocessing
         from google.cloud import logging as cloud_logging  # Ensure import is available
-    
+
         ctx = multiprocessing.get_context("fork")
         LOG_MESSAGE = "This is a test of client.flush_handlers before exiting."
         LOGGER_NAME = "close-test"
         handler_name = self._logger_name(LOGGER_NAME)
-    
+
         logger = Config.CLIENT.logger(handler_name)
         self.to_delete.append(logger)
-    
+
         def subprocess_main():
             # Create a fresh client inside the child process to avoid gRPC fork issues.
             # Do not use the shared Config.CLIENT here.
-            sub_client = cloud_logging.Client() 
-            
+            sub_client = cloud_logging.Client()
+
             handler = CloudLoggingHandler(
                 sub_client, name=handler_name, transport=BackgroundThreadTransport
             )
             cloud_logger = logging.getLogger(LOGGER_NAME)
             cloud_logger.addHandler(handler)
             cloud_logger.warning(LOG_MESSAGE)
-            
+
             # Flush using the subprocess-local client
             sub_client.flush_handlers()
-    
+
         proc = ctx.Process(target=subprocess_main)
         proc.start()
         proc.join()
-        
+
         # The parent's Config.CLIENT remains clean and can now list entries
         entries = _list_entries(logger)
         self.assertEqual(len(entries), 1)
