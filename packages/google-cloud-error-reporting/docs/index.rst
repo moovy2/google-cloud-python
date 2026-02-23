@@ -2,25 +2,26 @@
 
 .. include:: multiprocessing.rst
 
+
 Usage Documentation
 -------------------
 
 .. toctree::
-   :maxdepth: 2
+  :maxdepth: 2
 
-   usage
-   
+  usage
+  
 
 API Reference
 -------------
 .. toctree::
-   :maxdepth: 2
+  :maxdepth: 2
 
 
-   client
-   util
-   errorreporting_v1beta1/services_
-   errorreporting_v1beta1/types_
+  client
+  util
+  errorreporting_v1beta1/services_
+  errorreporting_v1beta1/types_
 
 
 Changelog
@@ -29,11 +30,11 @@ Changelog
 For a list of all ``google-cloud-error-reporting`` releases:
 
 .. toctree::
-  :maxdepth: 2
+    :maxdepth: 2
 
-  CHANGELOG
+    CHANGELOG
 
 .. toctree::
-   :hidden:
+  :hidden:
 
-   summary_overview.md
+  summary_overview.md
