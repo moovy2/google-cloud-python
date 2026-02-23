@@ -1553,7 +1553,7 @@ libraries:
     tag_format: '{id}-v{version}'
   - id: google-cloud-error-reporting
     version: 1.14.0
-    last_generated_commit: cf0434f4bd20618db60ddd16a1e7db2c0dfb9158
+    last_generated_commit: ce8678a96c8e1fc0d870d80fcf062e5be2b12877
     apis:
       - path: google/devtools/clouderrorreporting/v1beta1
         service_config: clouderrorreporting_v1beta1.yaml
@@ -1563,7 +1563,7 @@ libraries:
       - packages/google-cloud-error-reporting/CHANGELOG.md
       - docs/CHANGELOG.md
     remove_regex:
-      - ^packages/google-cloud-error-reporting/google/cloud/errorreporting_v1beta1
+      - ^packages/google-cloud-error-reporting/google/cloud/errorreporting
       - ^packages/google-cloud-error-reporting/docs/_static
       - ^packages/google-cloud-error-reporting/docs/_templates
       - ^packages/google-cloud-error-reporting/docs/errorreporting_v1beta1
