@@ -581,18 +581,10 @@ def core_deps_from_source(session, protobuf_implementation):
     )
 
 
-@nox.session(python=ALL_PYTHON)
+@nox.session(python=DEFAULT_PYTHON_VERSION)
 def mypy(session):
     """Run the type checker."""
-    session.install(
-        # TODO(https://github.com/googleapis/gapic-generator-python/issues/2410): Use the latest version of mypy
-        "mypy<1.16.0",
-        "types-requests",
-        "types-protobuf",
-    )
-    session.install(".")
-    session.run(
-        "mypy",
-        "-p",
-        "google",
-    )
+
+    # TODO(https://github.com/googleapis/google-cloud-python/issues/13362):
+    # Enable mypy once this repo has been updated for mypy evaluation.
+    session.skip("Skip mypy since this library is not yet updated for mypy evaluation")
