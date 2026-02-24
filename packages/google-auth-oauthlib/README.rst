@@ -5,8 +5,6 @@ oauthlib integration for Google Auth
 
 This library provides `oauthlib`_ integration with `google-auth`_.
 
-.. |build| image:: https://travis-ci.org/googleapis/google-auth-library-python-oauthlib.svg?branch=main
-   :target: https://googleapis.dev/python/google-auth-oauthlib/latest/index.html
 .. |pypi| image:: https://img.shields.io/pypi/v/google-auth-oauthlib.svg
    :target: https://pypi.python.org/pypi/google-auth-oauthlib
 
@@ -50,4 +48,4 @@ License
 
 Apache 2.0 - See `the LICENSE`_ for more information.
 
-.. _the LICENSE: https://github.com/googleapis/google-auth-library-python-oauthlib/blob/main/LICENSE
+.. _the LICENSE: https://github.com/googleapis/google-cloud-python/blob/main/LICENSE
