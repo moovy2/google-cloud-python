@@ -2,7 +2,7 @@ Transports
 ----------------
 
 These classes define how the :class:`CloudLoggingHandler <google.cloud.logging_v2.handlers.handlers.CloudLoggingHandler>`
-transport logs into GCP. More information in the :ref:`User Guide<transports>`
+transport logs into GCP.
 
 Base Transport
 ~~~~~~~~~~~~~~

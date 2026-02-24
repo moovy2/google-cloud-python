@@ -11,7 +11,7 @@ Django
 
 Django integration has been tested to work with each of the Django/Python versions listed `here <https://docs.djangoproject.com/en/stable/faq/install/#what-python-version-can-i-use-with-django>`_. 
 To enable Django integration, add `google.cloud.logging_v2.handlers.middleware.RequestMiddleware` to the list of `MIDDLEWARE`
-in your `settings <https://docs.djangoproject.com/en/stable/topics/settings/>`_ file. Also be sure to :doc:`set up logging </std-lib-integration>` in your settings file.
+in your `settings <https://docs.djangoproject.com/en/stable/topics/settings/>`_ file. Also be sure to set up logging in your settings file.
 
 Flask
 -----
@@ -26,4 +26,4 @@ Flask integration has been tested to work with the following versions of Flask:
 
  - Flask >=1.0.3
 
-Be sure to :doc:`set up logging </std-lib-integration>` before declaring the Flask app.
+Be sure to set up logging before declaring the Flask app.
