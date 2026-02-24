@@ -2,7 +2,7 @@ Automatic Trace/Span ID Extraction
 ==================================
 
 .. note::
-    All `LogEntry fields`_ populated :ref:`manually<Manual-Metadata>` will override those populated via methods referred to in this
+    All `LogEntry fields`_ populated manually will override those populated via methods referred to in this
     section.
 
 The Google Cloud Logging library can automatically populate `LogEntry fields`_
