@@ -459,3 +459,15 @@ replacements:
           "types",
       )
     count: 1
+  - paths: [
+      packages/google-cloud-logging/noxfile.py
+    ]
+    before: |
+      UNIT_TEST_EXTERNAL_DEPENDENCIES: List\[str\] = \[\]
+    after: |
+      UNIT_TEST_EXTERNAL_DEPENDENCIES: List[str] = [
+          "flask",
+          "webob",
+          "django",
+      ]
+    count: 1
