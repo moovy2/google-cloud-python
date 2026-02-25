@@ -1968,6 +1968,7 @@ libraries:
       - ^packages/google-cloud-logging/docs/README.rst
       - ^packages/google-cloud-logging/docs/_static/custom.css
       - ^packages/google-cloud-logging/docs/_templates
+      - ^packages/google-cloud-logging/docs/logging_v2
       - ^packages/google-cloud-logging/google/cloud/logging_v2/__init__.py
       - ^packages/google-cloud-logging/google/cloud/logging_v2/services
       - ^packages/google-cloud-logging/google/cloud/logging_v2/types
