@@ -23,9 +23,8 @@ import proto  # type: ignore
 from google.cloud.databasecenter_v1beta.types import (
     machine_config as gcd_machine_config,
 )
-from google.cloud.databasecenter_v1beta.types import maintenance, metric_data
+from google.cloud.databasecenter_v1beta.types import maintenance, metric_data, signals
 from google.cloud.databasecenter_v1beta.types import product as gcd_product
-from google.cloud.databasecenter_v1beta.types import signals
 
 __protobuf__ = proto.module(
     package="google.cloud.databasecenter.v1beta",
@@ -75,6 +74,7 @@ class ResourceCategory(proto.Enum):
         DATABASE (3):
             A resource that is a Database.
     """
+
     RESOURCE_CATEGORY_UNSPECIFIED = 0
     INSTANCE = 1
     CLUSTER = 2
@@ -96,6 +96,7 @@ class Edition(proto.Enum):
         EDITION_STANDARD (3):
             Represents the standard edition.
     """
+
     EDITION_UNSPECIFIED = 0
     EDITION_ENTERPRISE = 1
     EDITION_ENTERPRISE_PLUS = 2
@@ -119,6 +120,7 @@ class SubResourceType(proto.Enum):
         SUB_RESOURCE_TYPE_OTHER (4):
             For the rest of the categories.
     """
+
     SUB_RESOURCE_TYPE_UNSPECIFIED = 0
     SUB_RESOURCE_TYPE_PRIMARY = 1
     SUB_RESOURCE_TYPE_SECONDARY = 2
@@ -138,6 +140,7 @@ class ManagementType(proto.Enum):
         MANAGEMENT_TYPE_SELF_MANAGED (2):
             Self-managed resource.
     """
+
     MANAGEMENT_TYPE_UNSPECIFIED = 0
     MANAGEMENT_TYPE_GCP_MANAGED = 1
     MANAGEMENT_TYPE_SELF_MANAGED = 2
@@ -444,7 +447,6 @@ class DatabaseResourceGroup(proto.Message):
 class DatabaseResource(proto.Message):
     r"""DatabaseResource represents every individually configured
     database unit representing compute and/or storage.
-    NextId: 20
 
     Attributes:
         child_resources (MutableSequence[google.cloud.databasecenter_v1beta.types.DatabaseResource]):
@@ -463,15 +465,17 @@ class DatabaseResource(proto.Message):
             ``//alloydb.googleapis.com/projects/project-number/locations/us-central1/clusters/c1/instances/i1``
         container (str):
             Specifies where the resource is created. For
-            GCP, it is the full name of the project.
+            Google Cloud resources, it is the full name of
+            the project.
         product (google.cloud.databasecenter_v1beta.types.Product):
             The product this resource represents.
         location (str):
             The location of the resources. It supports
-            returning only regional locations in GCP. These
-            are of the form: "us-central1", "us-east1", etc.
-            See https://cloud.google.com/about/locations for
-            a list of such regions.
+            returning only regional locations in Google
+            Cloud. These are of the form: "us-central1",
+            "us-east1", etc. See
+            https://cloud.google.com/about/locations for a
+            list of such regions.
         labels (MutableSequence[google.cloud.databasecenter_v1beta.types.Label]):
             Labels applied on the resource. The
             requirements for labels assigned to Google Cloud
@@ -1082,7 +1086,8 @@ class Dimension(proto.Message):
     Attributes:
         container (str):
             Specifies where the resource is created. For
-            GCP, it is the full name of the project.
+            Google Cloud resources, it is the full name of
+            the project.
 
             This field is a member of `oneof`_ ``dimension``.
         product_type (google.cloud.databasecenter_v1beta.types.ProductType):
@@ -1100,7 +1105,8 @@ class Dimension(proto.Message):
             This field is a member of `oneof`_ ``dimension``.
         location (str):
             The location of the resources. It supports
-            returning only regional locations in GCP.
+            returning only regional locations in Google
+            Cloud.
 
             This field is a member of `oneof`_ ``dimension``.
         resource_type (str):
@@ -1352,12 +1358,12 @@ class QueryIssuesRequest(proto.Message):
         proto.STRING,
         number=2,
     )
-    signal_products_filters: MutableSequence[
-        "SignalProductsFilters"
-    ] = proto.RepeatedField(
-        proto.MESSAGE,
-        number=3,
-        message="SignalProductsFilters",
+    signal_products_filters: MutableSequence["SignalProductsFilters"] = (
+        proto.RepeatedField(
+            proto.MESSAGE,
+            number=3,
+            message="SignalProductsFilters",
+        )
     )
     order_by: str = proto.Field(
         proto.STRING,
@@ -1508,7 +1514,8 @@ class ResourceDetails(proto.Message):
             Full resource name of the resource.
         container (str):
             Specifies where the resource is created. For
-            GCP, it is the full name of the project.
+            Google Cloud resources, it is the full name of
+            the project.
         product (google.cloud.databasecenter_v1beta.types.Product):
             Product type of the resource.
         location (str):

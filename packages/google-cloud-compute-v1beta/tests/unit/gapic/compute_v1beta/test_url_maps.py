@@ -22,17 +22,17 @@ try:
 except ImportError:  # pragma: NO COVER
     import mock
 
-from collections.abc import AsyncIterable, Iterable
 import json
 import math
+from collections.abc import AsyncIterable, Iterable, Mapping, Sequence
 
+import grpc
+import pytest
 from google.api_core import api_core_version
 from google.protobuf import json_format
-import grpc
 from grpc.experimental import aio
 from proto.marshal.rules import wrappers
 from proto.marshal.rules.dates import DurationRule, TimestampRule
-import pytest
 from requests import PreparedRequest, Request, Response
 from requests.sessions import Session
 
@@ -43,18 +43,18 @@ try:
 except ImportError:  # pragma: NO COVER
     HAS_GOOGLE_AUTH_AIO = False
 
+import google.api_core.extended_operation as extended_operation  # type: ignore
+import google.auth
 from google.api_core import (
+    client_options,
     future,
     gapic_v1,
     grpc_helpers,
     grpc_helpers_async,
     path_template,
 )
-from google.api_core import client_options
 from google.api_core import exceptions as core_exceptions
 from google.api_core import retry as retries
-import google.api_core.extended_operation as extended_operation  # type: ignore
-import google.auth
 from google.auth import credentials as ga_credentials
 from google.auth.exceptions import MutualTLSChannelError
 from google.oauth2 import service_account
@@ -863,10 +863,9 @@ def test_url_maps_client_get_mtls_endpoint_and_cert_source(client_class):
                             client_cert_source=mock_client_cert_source,
                             api_endpoint=mock_api_endpoint,
                         )
-                        (
-                            api_endpoint,
-                            cert_source,
-                        ) = client_class.get_mtls_endpoint_and_cert_source(options)
+                        api_endpoint, cert_source = (
+                            client_class.get_mtls_endpoint_and_cert_source(options)
+                        )
                         assert api_endpoint == mock_api_endpoint
                         assert cert_source is expected_cert_source
 
@@ -911,10 +910,9 @@ def test_url_maps_client_get_mtls_endpoint_and_cert_source(client_class):
                             client_cert_source=mock_client_cert_source,
                             api_endpoint=mock_api_endpoint,
                         )
-                        (
-                            api_endpoint,
-                            cert_source,
-                        ) = client_class.get_mtls_endpoint_and_cert_source(options)
+                        api_endpoint, cert_source = (
+                            client_class.get_mtls_endpoint_and_cert_source(options)
+                        )
                         assert api_endpoint == mock_api_endpoint
                         assert cert_source is expected_cert_source
 
@@ -950,10 +948,9 @@ def test_url_maps_client_get_mtls_endpoint_and_cert_source(client_class):
                 "google.auth.transport.mtls.default_client_cert_source",
                 return_value=mock_client_cert_source,
             ):
-                (
-                    api_endpoint,
-                    cert_source,
-                ) = client_class.get_mtls_endpoint_and_cert_source()
+                api_endpoint, cert_source = (
+                    client_class.get_mtls_endpoint_and_cert_source()
+                )
                 assert api_endpoint == client_class.DEFAULT_MTLS_ENDPOINT
                 assert cert_source == mock_client_cert_source
 
@@ -2379,9 +2376,9 @@ def test_invalidate_cache_rest_use_cached_wrapped_rpc():
         mock_rpc.return_value.name = (
             "foo"  # operation_request.operation in compute client(s) expect a string.
         )
-        client._transport._wrapped_methods[
-            client._transport.invalidate_cache
-        ] = mock_rpc
+        client._transport._wrapped_methods[client._transport.invalidate_cache] = (
+            mock_rpc
+        )
 
         request = {}
         client.invalidate_cache(request)
@@ -2587,9 +2584,9 @@ def test_invalidate_cache_unary_rest_use_cached_wrapped_rpc():
         mock_rpc.return_value.name = (
             "foo"  # operation_request.operation in compute client(s) expect a string.
         )
-        client._transport._wrapped_methods[
-            client._transport.invalidate_cache
-        ] = mock_rpc
+        client._transport._wrapped_methods[client._transport.invalidate_cache] = (
+            mock_rpc
+        )
 
         request = {}
         client.invalidate_cache_unary(request)
@@ -3463,9 +3460,9 @@ def test_test_iam_permissions_rest_use_cached_wrapped_rpc():
         mock_rpc.return_value.name = (
             "foo"  # operation_request.operation in compute client(s) expect a string.
         )
-        client._transport._wrapped_methods[
-            client._transport.test_iam_permissions
-        ] = mock_rpc
+        client._transport._wrapped_methods[client._transport.test_iam_permissions] = (
+            mock_rpc
+        )
 
         request = {}
         client.test_iam_permissions(request)
@@ -4820,6 +4817,41 @@ def test_insert_rest_call_success(request_type):
             "error_service": "error_service_value",
         },
         "default_route_action": {
+            "cache_policy": {
+                "cache_bypass_request_header_names": [
+                    "cache_bypass_request_header_names_value1",
+                    "cache_bypass_request_header_names_value2",
+                ],
+                "cache_key_policy": {
+                    "excluded_query_parameters": [
+                        "excluded_query_parameters_value1",
+                        "excluded_query_parameters_value2",
+                    ],
+                    "include_host": True,
+                    "include_protocol": True,
+                    "include_query_string": True,
+                    "included_cookie_names": [
+                        "included_cookie_names_value1",
+                        "included_cookie_names_value2",
+                    ],
+                    "included_header_names": [
+                        "included_header_names_value1",
+                        "included_header_names_value2",
+                    ],
+                    "included_query_parameters": [
+                        "included_query_parameters_value1",
+                        "included_query_parameters_value2",
+                    ],
+                },
+                "cache_mode": "cache_mode_value",
+                "client_ttl": {"nanos": 543, "seconds": 751},
+                "default_ttl": {},
+                "max_ttl": {},
+                "negative_caching": True,
+                "negative_caching_policy": [{"code": 411, "ttl": {}}],
+                "request_coalescing": True,
+                "serve_while_stale": {},
+            },
             "cors_policy": {
                 "allow_credentials": True,
                 "allow_headers": ["allow_headers_value1", "allow_headers_value2"],
@@ -4835,10 +4867,7 @@ def test_insert_rest_call_success(request_type):
             },
             "fault_injection_policy": {
                 "abort": {"http_status": 1219, "percentage": 0.10540000000000001},
-                "delay": {
-                    "fixed_delay": {"nanos": 543, "seconds": 751},
-                    "percentage": 0.10540000000000001,
-                },
+                "delay": {"fixed_delay": {}, "percentage": 0.10540000000000001},
             },
             "max_stream_duration": {},
             "request_mirror_policy": {
@@ -5622,6 +5651,41 @@ def test_patch_rest_call_success(request_type):
             "error_service": "error_service_value",
         },
         "default_route_action": {
+            "cache_policy": {
+                "cache_bypass_request_header_names": [
+                    "cache_bypass_request_header_names_value1",
+                    "cache_bypass_request_header_names_value2",
+                ],
+                "cache_key_policy": {
+                    "excluded_query_parameters": [
+                        "excluded_query_parameters_value1",
+                        "excluded_query_parameters_value2",
+                    ],
+                    "include_host": True,
+                    "include_protocol": True,
+                    "include_query_string": True,
+                    "included_cookie_names": [
+                        "included_cookie_names_value1",
+                        "included_cookie_names_value2",
+                    ],
+                    "included_header_names": [
+                        "included_header_names_value1",
+                        "included_header_names_value2",
+                    ],
+                    "included_query_parameters": [
+                        "included_query_parameters_value1",
+                        "included_query_parameters_value2",
+                    ],
+                },
+                "cache_mode": "cache_mode_value",
+                "client_ttl": {"nanos": 543, "seconds": 751},
+                "default_ttl": {},
+                "max_ttl": {},
+                "negative_caching": True,
+                "negative_caching_policy": [{"code": 411, "ttl": {}}],
+                "request_coalescing": True,
+                "serve_while_stale": {},
+            },
             "cors_policy": {
                 "allow_credentials": True,
                 "allow_headers": ["allow_headers_value1", "allow_headers_value2"],
@@ -5637,10 +5701,7 @@ def test_patch_rest_call_success(request_type):
             },
             "fault_injection_policy": {
                 "abort": {"http_status": 1219, "percentage": 0.10540000000000001},
-                "delay": {
-                    "fixed_delay": {"nanos": 543, "seconds": 751},
-                    "percentage": 0.10540000000000001,
-                },
+                "delay": {"fixed_delay": {}, "percentage": 0.10540000000000001},
             },
             "max_stream_duration": {},
             "request_mirror_policy": {
@@ -6255,6 +6316,41 @@ def test_update_rest_call_success(request_type):
             "error_service": "error_service_value",
         },
         "default_route_action": {
+            "cache_policy": {
+                "cache_bypass_request_header_names": [
+                    "cache_bypass_request_header_names_value1",
+                    "cache_bypass_request_header_names_value2",
+                ],
+                "cache_key_policy": {
+                    "excluded_query_parameters": [
+                        "excluded_query_parameters_value1",
+                        "excluded_query_parameters_value2",
+                    ],
+                    "include_host": True,
+                    "include_protocol": True,
+                    "include_query_string": True,
+                    "included_cookie_names": [
+                        "included_cookie_names_value1",
+                        "included_cookie_names_value2",
+                    ],
+                    "included_header_names": [
+                        "included_header_names_value1",
+                        "included_header_names_value2",
+                    ],
+                    "included_query_parameters": [
+                        "included_query_parameters_value1",
+                        "included_query_parameters_value2",
+                    ],
+                },
+                "cache_mode": "cache_mode_value",
+                "client_ttl": {"nanos": 543, "seconds": 751},
+                "default_ttl": {},
+                "max_ttl": {},
+                "negative_caching": True,
+                "negative_caching_policy": [{"code": 411, "ttl": {}}],
+                "request_coalescing": True,
+                "serve_while_stale": {},
+            },
             "cors_policy": {
                 "allow_credentials": True,
                 "allow_headers": ["allow_headers_value1", "allow_headers_value2"],
@@ -6270,10 +6366,7 @@ def test_update_rest_call_success(request_type):
             },
             "fault_injection_policy": {
                 "abort": {"http_status": 1219, "percentage": 0.10540000000000001},
-                "delay": {
-                    "fixed_delay": {"nanos": 543, "seconds": 751},
-                    "percentage": 0.10540000000000001,
-                },
+                "delay": {"fixed_delay": {}, "percentage": 0.10540000000000001},
             },
             "max_stream_duration": {},
             "request_mirror_policy": {
@@ -6688,6 +6781,41 @@ def test_validate_rest_call_success(request_type):
                 "error_service": "error_service_value",
             },
             "default_route_action": {
+                "cache_policy": {
+                    "cache_bypass_request_header_names": [
+                        "cache_bypass_request_header_names_value1",
+                        "cache_bypass_request_header_names_value2",
+                    ],
+                    "cache_key_policy": {
+                        "excluded_query_parameters": [
+                            "excluded_query_parameters_value1",
+                            "excluded_query_parameters_value2",
+                        ],
+                        "include_host": True,
+                        "include_protocol": True,
+                        "include_query_string": True,
+                        "included_cookie_names": [
+                            "included_cookie_names_value1",
+                            "included_cookie_names_value2",
+                        ],
+                        "included_header_names": [
+                            "included_header_names_value1",
+                            "included_header_names_value2",
+                        ],
+                        "included_query_parameters": [
+                            "included_query_parameters_value1",
+                            "included_query_parameters_value2",
+                        ],
+                    },
+                    "cache_mode": "cache_mode_value",
+                    "client_ttl": {"nanos": 543, "seconds": 751},
+                    "default_ttl": {},
+                    "max_ttl": {},
+                    "negative_caching": True,
+                    "negative_caching_policy": [{"code": 411, "ttl": {}}],
+                    "request_coalescing": True,
+                    "serve_while_stale": {},
+                },
                 "cors_policy": {
                     "allow_credentials": True,
                     "allow_headers": ["allow_headers_value1", "allow_headers_value2"],
@@ -6706,10 +6834,7 @@ def test_validate_rest_call_success(request_type):
                 },
                 "fault_injection_policy": {
                     "abort": {"http_status": 1219, "percentage": 0.10540000000000001},
-                    "delay": {
-                        "fixed_delay": {"nanos": 543, "seconds": 751},
-                        "percentage": 0.10540000000000001,
-                    },
+                    "delay": {"fixed_delay": {}, "percentage": 0.10540000000000001},
                 },
                 "max_stream_duration": {},
                 "request_mirror_policy": {

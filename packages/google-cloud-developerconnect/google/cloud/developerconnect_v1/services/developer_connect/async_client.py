@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from collections import OrderedDict
 import logging as std_logging
 import re
+from collections import OrderedDict
 from typing import (
     Callable,
     Dict,
@@ -29,13 +29,13 @@ from typing import (
     Union,
 )
 
+import google.protobuf
 from google.api_core import exceptions as core_exceptions
 from google.api_core import gapic_v1
 from google.api_core import retry_async as retries
 from google.api_core.client_options import ClientOptions
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.oauth2 import service_account  # type: ignore
-import google.protobuf
 
 from google.cloud.developerconnect_v1 import gapic_version as package_version
 
@@ -46,11 +46,11 @@ except AttributeError:  # pragma: NO COVER
 
 import google.api_core.operation as operation  # type: ignore
 import google.api_core.operation_async as operation_async  # type: ignore
-from google.cloud.location import locations_pb2  # type: ignore
-from google.longrunning import operations_pb2  # type: ignore
 import google.protobuf.empty_pb2 as empty_pb2  # type: ignore
 import google.protobuf.field_mask_pb2 as field_mask_pb2  # type: ignore
 import google.protobuf.timestamp_pb2 as timestamp_pb2  # type: ignore
+from google.cloud.location import locations_pb2  # type: ignore
+from google.longrunning import operations_pb2  # type: ignore
 
 from google.cloud.developerconnect_v1.services.developer_connect import pagers
 from google.cloud.developerconnect_v1.types import developer_connect
@@ -95,6 +95,8 @@ class DeveloperConnectAsyncClient:
     parse_git_repository_link_path = staticmethod(
         DeveloperConnectClient.parse_git_repository_link_path
     )
+    instance_path = staticmethod(DeveloperConnectClient.instance_path)
+    parse_instance_path = staticmethod(DeveloperConnectClient.parse_instance_path)
     secret_version_path = staticmethod(DeveloperConnectClient.secret_version_path)
     parse_secret_version_path = staticmethod(
         DeveloperConnectClient.parse_secret_version_path
@@ -141,7 +143,10 @@ class DeveloperConnectAsyncClient:
         Returns:
             DeveloperConnectAsyncClient: The constructed client.
         """
-        return DeveloperConnectClient.from_service_account_info.__func__(DeveloperConnectAsyncClient, info, *args, **kwargs)  # type: ignore
+        sa_info_func = (
+            DeveloperConnectClient.from_service_account_info.__func__  # type: ignore
+        )
+        return sa_info_func(DeveloperConnectAsyncClient, info, *args, **kwargs)
 
     @classmethod
     def from_service_account_file(cls, filename: str, *args, **kwargs):
@@ -157,7 +162,10 @@ class DeveloperConnectAsyncClient:
         Returns:
             DeveloperConnectAsyncClient: The constructed client.
         """
-        return DeveloperConnectClient.from_service_account_file.__func__(DeveloperConnectAsyncClient, filename, *args, **kwargs)  # type: ignore
+        sa_file_func = (
+            DeveloperConnectClient.from_service_account_file.__func__  # type: ignore
+        )
+        return sa_file_func(DeveloperConnectAsyncClient, filename, *args, **kwargs)
 
     from_service_account_json = from_service_account_file
 
@@ -582,7 +590,7 @@ class DeveloperConnectAsyncClient:
 
                 # Initialize request argument(s)
                 connection = developerconnect_v1.Connection()
-                connection.github_config.github_app = "FIREBASE"
+                connection.github_config.github_app = "GEMINI_CODE_ASSIST"
 
                 request = developerconnect_v1.CreateConnectionRequest(
                     parent="parent_value",
@@ -730,7 +738,7 @@ class DeveloperConnectAsyncClient:
 
                 # Initialize request argument(s)
                 connection = developerconnect_v1.Connection()
-                connection.github_config.github_app = "FIREBASE"
+                connection.github_config.github_app = "GEMINI_CODE_ASSIST"
 
                 request = developerconnect_v1.UpdateConnectionRequest(
                     connection=connection,
@@ -992,7 +1000,9 @@ class DeveloperConnectAsyncClient:
         Repository, Developer Connect will configure the Git
         Repository to send webhook events to Developer Connect.
         Connections that use Firebase GitHub Application will
-        have events forwarded to the Firebase service. All other
+        have events forwarded to the Firebase service.
+        Connections that use Gemini Code Assist will have events
+        forwarded to Gemini Code Assist service. All other
         Connections will have events forwarded to Cloud Build.
 
         .. code-block:: python
@@ -3424,6 +3434,237 @@ class DeveloperConnectAsyncClient:
             self._client._transport.operations_client,
             empty_pb2.Empty,
             metadata_type=developer_connect.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    async def start_o_auth(
+        self,
+        request: Optional[Union[developer_connect.StartOAuthRequest, dict]] = None,
+        *,
+        account_connector: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> developer_connect.StartOAuthResponse:
+        r"""Starts OAuth flow for an account connector.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import developerconnect_v1
+
+            async def sample_start_o_auth():
+                # Create a client
+                client = developerconnect_v1.DeveloperConnectAsyncClient()
+
+                # Initialize request argument(s)
+                request = developerconnect_v1.StartOAuthRequest(
+                    account_connector="account_connector_value",
+                )
+
+                # Make the request
+                response = await client.start_o_auth(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Optional[Union[google.cloud.developerconnect_v1.types.StartOAuthRequest, dict]]):
+                The request object. Message for starting an OAuth flow.
+            account_connector (:class:`str`):
+                Required. The resource name of the AccountConnector in
+                the format
+                ``projects/*/locations/*/accountConnectors/*``.
+
+                This corresponds to the ``account_connector`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry_async.AsyncRetry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.developerconnect_v1.types.StartOAuthResponse:
+                Message for responding to starting an
+                OAuth flow.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        flattened_params = [account_connector]
+        has_flattened_params = (
+            len([param for param in flattened_params if param is not None]) > 0
+        )
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, developer_connect.StartOAuthRequest):
+            request = developer_connect.StartOAuthRequest(request)
+
+        # If we have keyword arguments corresponding to fields on the
+        # request, apply these.
+        if account_connector is not None:
+            request.account_connector = account_connector
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._client._transport._wrapped_methods[
+            self._client._transport.start_o_auth
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("account_connector", request.account_connector),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._client._validate_universe_domain()
+
+        # Send the request.
+        response = await rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    async def finish_o_auth(
+        self,
+        request: Optional[Union[developer_connect.FinishOAuthRequest, dict]] = None,
+        *,
+        account_connector: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> developer_connect.FinishOAuthResponse:
+        r"""Finishes OAuth flow for an account connector.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import developerconnect_v1
+
+            async def sample_finish_o_auth():
+                # Create a client
+                client = developerconnect_v1.DeveloperConnectAsyncClient()
+
+                # Initialize request argument(s)
+                oauth_params = developerconnect_v1.OAuthParams()
+                oauth_params.code = "code_value"
+                oauth_params.ticket = "ticket_value"
+
+                request = developerconnect_v1.FinishOAuthRequest(
+                    oauth_params=oauth_params,
+                    account_connector="account_connector_value",
+                )
+
+                # Make the request
+                response = await client.finish_o_auth(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Optional[Union[google.cloud.developerconnect_v1.types.FinishOAuthRequest, dict]]):
+                The request object. Message for finishing an OAuth flow.
+            account_connector (:class:`str`):
+                Required. The resource name of the AccountConnector in
+                the format
+                ``projects/*/locations/*/accountConnectors/*``.
+
+                This corresponds to the ``account_connector`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry_async.AsyncRetry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.developerconnect_v1.types.FinishOAuthResponse:
+                Message for responding to finishing
+                an OAuth flow.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        flattened_params = [account_connector]
+        has_flattened_params = (
+            len([param for param in flattened_params if param is not None]) > 0
+        )
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, developer_connect.FinishOAuthRequest):
+            request = developer_connect.FinishOAuthRequest(request)
+
+        # If we have keyword arguments corresponding to fields on the
+        # request, apply these.
+        if account_connector is not None:
+            request.account_connector = account_connector
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._client._transport._wrapped_methods[
+            self._client._transport.finish_o_auth
+        ]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata(
+                (("account_connector", request.account_connector),)
+            ),
+        )
+
+        # Validate the universe domain.
+        self._client._validate_universe_domain()
+
+        # Send the request.
+        response = await rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
         # Done; return the response.

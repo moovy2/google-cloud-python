@@ -17,9 +17,12 @@ import inspect
 import json
 import logging as std_logging
 import pickle
-from typing import Awaitable, Callable, Dict, Optional, Sequence, Tuple, Union
 import warnings
+from typing import Awaitable, Callable, Dict, Optional, Sequence, Tuple, Union
 
+import google.protobuf.message
+import grpc  # type: ignore
+import proto  # type: ignore
 from google.api_core import exceptions as core_exceptions
 from google.api_core import gapic_v1, grpc_helpers_async, operations_v1
 from google.api_core import retry_async as retries
@@ -28,10 +31,7 @@ from google.auth.transport.grpc import SslCredentials  # type: ignore
 from google.cloud.location import locations_pb2  # type: ignore
 from google.longrunning import operations_pb2  # type: ignore
 from google.protobuf.json_format import MessageToJson
-import google.protobuf.message
-import grpc  # type: ignore
 from grpc.experimental import aio  # type: ignore
-import proto  # type: ignore
 
 from google.cloud.developerconnect_v1.types import developer_connect
 
@@ -504,7 +504,9 @@ class DeveloperConnectGrpcAsyncIOTransport(DeveloperConnectTransport):
         Repository, Developer Connect will configure the Git
         Repository to send webhook events to Developer Connect.
         Connections that use Firebase GitHub Application will
-        have events forwarded to the Firebase service. All other
+        have events forwarded to the Firebase service.
+        Connections that use Gemini Code Assist will have events
+        forwarded to Gemini Code Assist service. All other
         Connections will have events forwarded to Cloud Build.
 
         Returns:
@@ -518,12 +520,12 @@ class DeveloperConnectGrpcAsyncIOTransport(DeveloperConnectTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "create_git_repository_link" not in self._stubs:
-            self._stubs[
-                "create_git_repository_link"
-            ] = self._logged_channel.unary_unary(
-                "/google.cloud.developerconnect.v1.DeveloperConnect/CreateGitRepositoryLink",
-                request_serializer=developer_connect.CreateGitRepositoryLinkRequest.serialize,
-                response_deserializer=operations_pb2.Operation.FromString,
+            self._stubs["create_git_repository_link"] = (
+                self._logged_channel.unary_unary(
+                    "/google.cloud.developerconnect.v1.DeveloperConnect/CreateGitRepositoryLink",
+                    request_serializer=developer_connect.CreateGitRepositoryLinkRequest.serialize,
+                    response_deserializer=operations_pb2.Operation.FromString,
+                )
             )
         return self._stubs["create_git_repository_link"]
 
@@ -549,12 +551,12 @@ class DeveloperConnectGrpcAsyncIOTransport(DeveloperConnectTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "delete_git_repository_link" not in self._stubs:
-            self._stubs[
-                "delete_git_repository_link"
-            ] = self._logged_channel.unary_unary(
-                "/google.cloud.developerconnect.v1.DeveloperConnect/DeleteGitRepositoryLink",
-                request_serializer=developer_connect.DeleteGitRepositoryLinkRequest.serialize,
-                response_deserializer=operations_pb2.Operation.FromString,
+            self._stubs["delete_git_repository_link"] = (
+                self._logged_channel.unary_unary(
+                    "/google.cloud.developerconnect.v1.DeveloperConnect/DeleteGitRepositoryLink",
+                    request_serializer=developer_connect.DeleteGitRepositoryLinkRequest.serialize,
+                    response_deserializer=operations_pb2.Operation.FromString,
+                )
             )
         return self._stubs["delete_git_repository_link"]
 
@@ -701,12 +703,12 @@ class DeveloperConnectGrpcAsyncIOTransport(DeveloperConnectTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "fetch_linkable_git_repositories" not in self._stubs:
-            self._stubs[
-                "fetch_linkable_git_repositories"
-            ] = self._logged_channel.unary_unary(
-                "/google.cloud.developerconnect.v1.DeveloperConnect/FetchLinkableGitRepositories",
-                request_serializer=developer_connect.FetchLinkableGitRepositoriesRequest.serialize,
-                response_deserializer=developer_connect.FetchLinkableGitRepositoriesResponse.deserialize,
+            self._stubs["fetch_linkable_git_repositories"] = (
+                self._logged_channel.unary_unary(
+                    "/google.cloud.developerconnect.v1.DeveloperConnect/FetchLinkableGitRepositories",
+                    request_serializer=developer_connect.FetchLinkableGitRepositoriesRequest.serialize,
+                    response_deserializer=developer_connect.FetchLinkableGitRepositoriesResponse.deserialize,
+                )
             )
         return self._stubs["fetch_linkable_git_repositories"]
 
@@ -736,12 +738,12 @@ class DeveloperConnectGrpcAsyncIOTransport(DeveloperConnectTransport):
         # gRPC handles serialization and deserialization, so we just need
         # to pass in the functions for each.
         if "fetch_git_hub_installations" not in self._stubs:
-            self._stubs[
-                "fetch_git_hub_installations"
-            ] = self._logged_channel.unary_unary(
-                "/google.cloud.developerconnect.v1.DeveloperConnect/FetchGitHubInstallations",
-                request_serializer=developer_connect.FetchGitHubInstallationsRequest.serialize,
-                response_deserializer=developer_connect.FetchGitHubInstallationsResponse.deserialize,
+            self._stubs["fetch_git_hub_installations"] = (
+                self._logged_channel.unary_unary(
+                    "/google.cloud.developerconnect.v1.DeveloperConnect/FetchGitHubInstallations",
+                    request_serializer=developer_connect.FetchGitHubInstallationsRequest.serialize,
+                    response_deserializer=developer_connect.FetchGitHubInstallationsResponse.deserialize,
+                )
             )
         return self._stubs["fetch_git_hub_installations"]
 
@@ -1065,6 +1067,64 @@ class DeveloperConnectGrpcAsyncIOTransport(DeveloperConnectTransport):
             )
         return self._stubs["delete_self"]
 
+    @property
+    def start_o_auth(
+        self,
+    ) -> Callable[
+        [developer_connect.StartOAuthRequest],
+        Awaitable[developer_connect.StartOAuthResponse],
+    ]:
+        r"""Return a callable for the start o auth method over gRPC.
+
+        Starts OAuth flow for an account connector.
+
+        Returns:
+            Callable[[~.StartOAuthRequest],
+                    Awaitable[~.StartOAuthResponse]]:
+                A function that, when called, will call the underlying RPC
+                on the server.
+        """
+        # Generate a "stub function" on-the-fly which will actually make
+        # the request.
+        # gRPC handles serialization and deserialization, so we just need
+        # to pass in the functions for each.
+        if "start_o_auth" not in self._stubs:
+            self._stubs["start_o_auth"] = self._logged_channel.unary_unary(
+                "/google.cloud.developerconnect.v1.DeveloperConnect/StartOAuth",
+                request_serializer=developer_connect.StartOAuthRequest.serialize,
+                response_deserializer=developer_connect.StartOAuthResponse.deserialize,
+            )
+        return self._stubs["start_o_auth"]
+
+    @property
+    def finish_o_auth(
+        self,
+    ) -> Callable[
+        [developer_connect.FinishOAuthRequest],
+        Awaitable[developer_connect.FinishOAuthResponse],
+    ]:
+        r"""Return a callable for the finish o auth method over gRPC.
+
+        Finishes OAuth flow for an account connector.
+
+        Returns:
+            Callable[[~.FinishOAuthRequest],
+                    Awaitable[~.FinishOAuthResponse]]:
+                A function that, when called, will call the underlying RPC
+                on the server.
+        """
+        # Generate a "stub function" on-the-fly which will actually make
+        # the request.
+        # gRPC handles serialization and deserialization, so we just need
+        # to pass in the functions for each.
+        if "finish_o_auth" not in self._stubs:
+            self._stubs["finish_o_auth"] = self._logged_channel.unary_unary(
+                "/google.cloud.developerconnect.v1.DeveloperConnect/FinishOAuth",
+                request_serializer=developer_connect.FinishOAuthRequest.serialize,
+                response_deserializer=developer_connect.FinishOAuthResponse.deserialize,
+            )
+        return self._stubs["finish_o_auth"]
+
     def _prep_wrapped_messages(self, client_info):
         """Precompute the wrapped methods, overriding the base class method to use async wrappers."""
         self._wrapped_methods = {
@@ -1293,6 +1353,16 @@ class DeveloperConnectGrpcAsyncIOTransport(DeveloperConnectTransport):
             ),
             self.delete_self: self._wrap_method(
                 self.delete_self,
+                default_timeout=None,
+                client_info=client_info,
+            ),
+            self.start_o_auth: self._wrap_method(
+                self.start_o_auth,
+                default_timeout=None,
+                client_info=client_info,
+            ),
+            self.finish_o_auth: self._wrap_method(
+                self.finish_o_auth,
                 default_timeout=None,
                 client_info=client_info,
             ),

@@ -82,6 +82,7 @@ class RequestStatusPerDestination(proto.Message):
             PARTIAL_SUCCESS (4):
                 The request partially succeeded.
         """
+
         REQUEST_STATUS_UNKNOWN = 0
         SUCCESS = 1
         PROCESSING = 2
@@ -114,6 +115,16 @@ class RequestStatusPerDestination(proto.Message):
                 destination.
 
                 This field is a member of `oneof`_ ``status``.
+            user_id_data_ingestion_status (google.ads.datamanager_v1.types.RequestStatusPerDestination.IngestUserIdDataStatus):
+                The status of the user id data ingestion to
+                the destination.
+
+                This field is a member of `oneof`_ ``status``.
+            ppid_data_ingestion_status (google.ads.datamanager_v1.types.RequestStatusPerDestination.IngestPpidDataStatus):
+                The status of the ppid data ingestion to the
+                destination.
+
+                This field is a member of `oneof`_ ``status``.
         """
 
         user_data_ingestion_status: "RequestStatusPerDestination.IngestUserDataStatus" = proto.Field(
@@ -133,6 +144,18 @@ class RequestStatusPerDestination(proto.Message):
             number=3,
             oneof="status",
             message="RequestStatusPerDestination.IngestPairDataStatus",
+        )
+        user_id_data_ingestion_status: "RequestStatusPerDestination.IngestUserIdDataStatus" = proto.Field(
+            proto.MESSAGE,
+            number=4,
+            oneof="status",
+            message="RequestStatusPerDestination.IngestUserIdDataStatus",
+        )
+        ppid_data_ingestion_status: "RequestStatusPerDestination.IngestPpidDataStatus" = proto.Field(
+            proto.MESSAGE,
+            number=5,
+            oneof="status",
+            message="RequestStatusPerDestination.IngestPpidDataStatus",
         )
 
     class RemoveAudienceMembersStatus(proto.Message):
@@ -161,6 +184,16 @@ class RequestStatusPerDestination(proto.Message):
                 destination.
 
                 This field is a member of `oneof`_ ``status``.
+            user_id_data_removal_status (google.ads.datamanager_v1.types.RequestStatusPerDestination.RemoveUserIdDataStatus):
+                The status of the user id data removal from
+                the destination.
+
+                This field is a member of `oneof`_ ``status``.
+            ppid_data_removal_status (google.ads.datamanager_v1.types.RequestStatusPerDestination.RemovePpidDataStatus):
+                The status of the ppid data removal from the
+                destination.
+
+                This field is a member of `oneof`_ ``status``.
         """
 
         user_data_removal_status: "RequestStatusPerDestination.RemoveUserDataStatus" = (
@@ -183,6 +216,20 @@ class RequestStatusPerDestination(proto.Message):
                 number=3,
                 oneof="status",
                 message="RequestStatusPerDestination.RemovePairDataStatus",
+            )
+        )
+        user_id_data_removal_status: "RequestStatusPerDestination.RemoveUserIdDataStatus" = proto.Field(
+            proto.MESSAGE,
+            number=4,
+            oneof="status",
+            message="RequestStatusPerDestination.RemoveUserIdDataStatus",
+        )
+        ppid_data_removal_status: "RequestStatusPerDestination.RemovePpidDataStatus" = (
+            proto.Field(
+                proto.MESSAGE,
+                number=5,
+                oneof="status",
+                message="RequestStatusPerDestination.RemovePpidDataStatus",
             )
         )
 
@@ -362,6 +409,110 @@ class RequestStatusPerDestination(proto.Message):
             number=1,
         )
         pair_id_count: int = proto.Field(
+            proto.INT64,
+            number=2,
+        )
+
+    class IngestUserIdDataStatus(proto.Message):
+        r"""The status of the user id data ingestion to the destination
+        containing stats related to the ingestion.
+
+        Attributes:
+            record_count (int):
+                The total count of audience members sent in
+                the upload request for the destination. Includes
+                all audience members in the request, regardless
+                of whether they were successfully ingested or
+                not.
+            user_id_count (int):
+                The total count of user ids sent in the
+                upload request for the destination. Includes all
+                user ids in the request, regardless of whether
+                they were successfully ingested or not.
+        """
+
+        record_count: int = proto.Field(
+            proto.INT64,
+            number=1,
+        )
+        user_id_count: int = proto.Field(
+            proto.INT64,
+            number=2,
+        )
+
+    class RemoveUserIdDataStatus(proto.Message):
+        r"""The status of the user id data removal from the destination.
+
+        Attributes:
+            record_count (int):
+                The total count of audience members sent in
+                the removal request. Includes all audience
+                members in the request, regardless of whether
+                they were successfully removed or not.
+            user_id_count (int):
+                The total count of user ids sent in the
+                removal request. Includes all user ids in the
+                request, regardless of whether they were
+                successfully removed or not.
+        """
+
+        record_count: int = proto.Field(
+            proto.INT64,
+            number=1,
+        )
+        user_id_count: int = proto.Field(
+            proto.INT64,
+            number=2,
+        )
+
+    class IngestPpidDataStatus(proto.Message):
+        r"""The status of the ppid data ingestion to the destination
+        containing stats related to the ingestion.
+
+        Attributes:
+            record_count (int):
+                The total count of audience members sent in
+                the upload request for the destination. Includes
+                all audience members in the request, regardless
+                of whether they were successfully ingested or
+                not.
+            ppid_count (int):
+                The total count of ppids sent in the upload
+                request for the destination. Includes all ppids
+                in the request, regardless of whether they were
+                successfully ingested or not.
+        """
+
+        record_count: int = proto.Field(
+            proto.INT64,
+            number=1,
+        )
+        ppid_count: int = proto.Field(
+            proto.INT64,
+            number=2,
+        )
+
+    class RemovePpidDataStatus(proto.Message):
+        r"""The status of the ppid data removal from the destination.
+
+        Attributes:
+            record_count (int):
+                The total count of audience members sent in
+                the removal request. Includes all audience
+                members in the request, regardless of whether
+                they were successfully removed or not.
+            ppid_count (int):
+                The total count of ppids sent in the removal
+                request. Includes all ppids in the request,
+                regardless of whether they were successfully
+                removed or not.
+        """
+
+        record_count: int = proto.Field(
+            proto.INT64,
+            number=1,
+        )
+        ppid_count: int = proto.Field(
             proto.INT64,
             number=2,
         )

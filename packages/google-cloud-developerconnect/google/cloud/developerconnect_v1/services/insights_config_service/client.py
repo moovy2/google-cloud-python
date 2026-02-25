@@ -13,12 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from collections import OrderedDict
-from http import HTTPStatus
 import json
 import logging as std_logging
 import os
 import re
+import warnings
+from collections import OrderedDict
+from http import HTTPStatus
 from typing import (
     Callable,
     Dict,
@@ -32,8 +33,8 @@ from typing import (
     Union,
     cast,
 )
-import warnings
 
+import google.protobuf
 from google.api_core import client_options as client_options_lib
 from google.api_core import exceptions as core_exceptions
 from google.api_core import gapic_v1
@@ -43,7 +44,6 @@ from google.auth.exceptions import MutualTLSChannelError  # type: ignore
 from google.auth.transport import mtls  # type: ignore
 from google.auth.transport.grpc import SslCredentials  # type: ignore
 from google.oauth2 import service_account  # type: ignore
-import google.protobuf
 
 from google.cloud.developerconnect_v1 import gapic_version as package_version
 
@@ -63,18 +63,17 @@ _LOGGER = std_logging.getLogger(__name__)
 
 import google.api_core.operation as operation  # type: ignore
 import google.api_core.operation_async as operation_async  # type: ignore
-from google.cloud.location import locations_pb2  # type: ignore
-from google.longrunning import operations_pb2  # type: ignore
 import google.protobuf.empty_pb2 as empty_pb2  # type: ignore
 import google.protobuf.timestamp_pb2 as timestamp_pb2  # type: ignore
 import google.rpc.status_pb2 as status_pb2  # type: ignore
+from google.cloud.location import locations_pb2  # type: ignore
+from google.longrunning import operations_pb2  # type: ignore
 
 from google.cloud.developerconnect_v1.services.insights_config_service import pagers
+from google.cloud.developerconnect_v1.types import developer_connect, insights_config
 from google.cloud.developerconnect_v1.types import (
     insights_config as gcd_insights_config,
 )
-from google.cloud.developerconnect_v1.types import developer_connect
-from google.cloud.developerconnect_v1.types import insights_config
 
 from .transports.base import DEFAULT_CLIENT_INFO, InsightsConfigServiceTransport
 from .transports.grpc import InsightsConfigServiceGrpcTransport
@@ -90,9 +89,7 @@ class InsightsConfigServiceClientMeta(type):
     objects.
     """
 
-    _transport_registry = (
-        OrderedDict()
-    )  # type: Dict[str, Type[InsightsConfigServiceTransport]]
+    _transport_registry = OrderedDict()  # type: Dict[str, Type[InsightsConfigServiceTransport]]
     _transport_registry["grpc"] = InsightsConfigServiceGrpcTransport
     _transport_registry["grpc_asyncio"] = InsightsConfigServiceGrpcAsyncIOTransport
     _transport_registry["rest"] = InsightsConfigServiceRestTransport
@@ -124,7 +121,7 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
 
     The InsightsConfig resource is the core configuration object to
     capture events from your Software Development Lifecycle. It acts
-    as the central hub for managing how Developer connect
+    as the central hub for managing how Developer Connect
     understands your application, its runtime environments, and the
     artifacts deployed within them. A user can create an
     InsightsConfig, list previously-requested InsightsConfigs or get
@@ -245,6 +242,30 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
                 instance.
         """
         return self._transport
+
+    @staticmethod
+    def deployment_event_path(
+        project: str,
+        location: str,
+        insights_config: str,
+        deployment_event: str,
+    ) -> str:
+        """Returns a fully-qualified deployment_event string."""
+        return "projects/{project}/locations/{location}/insightsConfigs/{insights_config}/deploymentEvents/{deployment_event}".format(
+            project=project,
+            location=location,
+            insights_config=insights_config,
+            deployment_event=deployment_event,
+        )
+
+    @staticmethod
+    def parse_deployment_event_path(path: str) -> Dict[str, str]:
+        """Parses a deployment_event path into its component segments."""
+        m = re.match(
+            r"^projects/(?P<project>.+?)/locations/(?P<location>.+?)/insightsConfigs/(?P<insights_config>.+?)/deploymentEvents/(?P<deployment_event>.+?)$",
+            path,
+        )
+        return m.groupdict() if m else {}
 
     @staticmethod
     def insights_config_path(
@@ -648,11 +669,9 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
 
         universe_domain_opt = getattr(self._client_options, "universe_domain", None)
 
-        (
-            self._use_client_cert,
-            self._use_mtls_endpoint,
-            self._universe_domain_env,
-        ) = InsightsConfigServiceClient._read_environment_variables()
+        self._use_client_cert, self._use_mtls_endpoint, self._universe_domain_env = (
+            InsightsConfigServiceClient._read_environment_variables()
+        )
         self._client_cert_source = InsightsConfigServiceClient._get_client_cert_source(
             self._client_options.client_cert_source, self._use_client_cert
         )
@@ -687,8 +706,7 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
                 )
             if self._client_options.scopes:
                 raise ValueError(
-                    "When providing a transport instance, provide its scopes "
-                    "directly."
+                    "When providing a transport instance, provide its scopes directly."
                 )
             self._transport = cast(InsightsConfigServiceTransport, transport)
             self._api_endpoint = self._transport.host
@@ -970,7 +988,7 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
                 The result type for the operation will be :class:`google.cloud.developerconnect_v1.types.InsightsConfig` The InsightsConfig resource is the core configuration object to capture
                    events from your Software Development Lifecycle. It
                    acts as the central hub for managing how Developer
-                   connect understands your application, its runtime
+                   Connect understands your application, its runtime
                    environments, and the artifacts deployed within them.
 
         """
@@ -1092,7 +1110,7 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
                 core configuration object to capture
                 events from your Software Development
                 Lifecycle. It acts as the central hub
-                for managing how Developer connect
+                for managing how Developer Connect
                 understands your application, its
                 runtime environments, and the artifacts
                 deployed within them.
@@ -1208,7 +1226,7 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
                 The result type for the operation will be :class:`google.cloud.developerconnect_v1.types.InsightsConfig` The InsightsConfig resource is the core configuration object to capture
                    events from your Software Development Lifecycle. It
                    acts as the central hub for managing how Developer
-                   connect understands your application, its runtime
+                   Connect understands your application, its runtime
                    environments, and the artifacts deployed within them.
 
         """
@@ -1263,7 +1281,7 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
         timeout: Union[float, object] = gapic_v1.method.DEFAULT,
         metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
     ) -> operation.Operation:
-        r"""Delete a single Insight.
+        r"""Deletes a single Insight.
 
         .. code-block:: python
 
@@ -1377,6 +1395,245 @@ class InsightsConfigServiceClient(metaclass=InsightsConfigServiceClientMeta):
             self._transport.operations_client,
             empty_pb2.Empty,
             metadata_type=developer_connect.OperationMetadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def get_deployment_event(
+        self,
+        request: Optional[
+            Union[insights_config.GetDeploymentEventRequest, dict]
+        ] = None,
+        *,
+        name: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> insights_config.DeploymentEvent:
+        r"""Gets a single Deployment Event.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import developerconnect_v1
+
+            def sample_get_deployment_event():
+                # Create a client
+                client = developerconnect_v1.InsightsConfigServiceClient()
+
+                # Initialize request argument(s)
+                request = developerconnect_v1.GetDeploymentEventRequest(
+                    name="name_value",
+                )
+
+                # Make the request
+                response = client.get_deployment_event(request=request)
+
+                # Handle the response
+                print(response)
+
+        Args:
+            request (Union[google.cloud.developerconnect_v1.types.GetDeploymentEventRequest, dict]):
+                The request object. Request for getting a
+                DeploymentEvent.
+            name (str):
+                Required. The name of the deployment event to retrieve.
+                Format:
+                projects/{project}/locations/{location}/insightsConfigs/{insights_config}/deploymentEvents/{uuid}
+
+                This corresponds to the ``name`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.developerconnect_v1.types.DeploymentEvent:
+                The DeploymentEvent resource
+                represents the deployment of the
+                artifact within the InsightsConfig
+                resource.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        flattened_params = [name]
+        has_flattened_params = (
+            len([param for param in flattened_params if param is not None]) > 0
+        )
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, insights_config.GetDeploymentEventRequest):
+            request = insights_config.GetDeploymentEventRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if name is not None:
+                request.name = name
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.get_deployment_event]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("name", request.name),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # Done; return the response.
+        return response
+
+    def list_deployment_events(
+        self,
+        request: Optional[
+            Union[insights_config.ListDeploymentEventsRequest, dict]
+        ] = None,
+        *,
+        parent: Optional[str] = None,
+        retry: OptionalRetry = gapic_v1.method.DEFAULT,
+        timeout: Union[float, object] = gapic_v1.method.DEFAULT,
+        metadata: Sequence[Tuple[str, Union[str, bytes]]] = (),
+    ) -> pagers.ListDeploymentEventsPager:
+        r"""Lists Deployment Events in a given insights config.
+
+        .. code-block:: python
+
+            # This snippet has been automatically generated and should be regarded as a
+            # code template only.
+            # It will require modifications to work:
+            # - It may require correct/in-range values for request initialization.
+            # - It may require specifying regional endpoints when creating the service
+            #   client as shown in:
+            #   https://googleapis.dev/python/google-api-core/latest/client_options.html
+            from google.cloud import developerconnect_v1
+
+            def sample_list_deployment_events():
+                # Create a client
+                client = developerconnect_v1.InsightsConfigServiceClient()
+
+                # Initialize request argument(s)
+                request = developerconnect_v1.ListDeploymentEventsRequest(
+                    parent="parent_value",
+                )
+
+                # Make the request
+                page_result = client.list_deployment_events(request=request)
+
+                # Handle the response
+                for response in page_result:
+                    print(response)
+
+        Args:
+            request (Union[google.cloud.developerconnect_v1.types.ListDeploymentEventsRequest, dict]):
+                The request object. Request for requesting list of
+                DeploymentEvents.
+            parent (str):
+                Required. The parent insights config that owns this
+                collection of deployment events. Format:
+                projects/{project}/locations/{location}/insightsConfigs/{insights_config}
+
+                This corresponds to the ``parent`` field
+                on the ``request`` instance; if ``request`` is provided, this
+                should not be set.
+            retry (google.api_core.retry.Retry): Designation of what errors, if any,
+                should be retried.
+            timeout (float): The timeout for this request.
+            metadata (Sequence[Tuple[str, Union[str, bytes]]]): Key/value pairs which should be
+                sent along with the request as metadata. Normally, each value must be of type `str`,
+                but for metadata keys ending with the suffix `-bin`, the corresponding values must
+                be of type `bytes`.
+
+        Returns:
+            google.cloud.developerconnect_v1.services.insights_config_service.pagers.ListDeploymentEventsPager:
+                Response to listing DeploymentEvents.
+
+                Iterating over this object will yield
+                results and resolve additional pages
+                automatically.
+
+        """
+        # Create or coerce a protobuf request object.
+        # - Quick check: If we got a request object, we should *not* have
+        #   gotten any keyword arguments that map to the request.
+        flattened_params = [parent]
+        has_flattened_params = (
+            len([param for param in flattened_params if param is not None]) > 0
+        )
+        if request is not None and has_flattened_params:
+            raise ValueError(
+                "If the `request` argument is set, then none of "
+                "the individual field arguments should be set."
+            )
+
+        # - Use the request object if provided (there's no risk of modifying the input as
+        #   there are no flattened fields), or create one.
+        if not isinstance(request, insights_config.ListDeploymentEventsRequest):
+            request = insights_config.ListDeploymentEventsRequest(request)
+            # If we have keyword arguments corresponding to fields on the
+            # request, apply these.
+            if parent is not None:
+                request.parent = parent
+
+        # Wrap the RPC method; this adds retry and timeout information,
+        # and friendly error handling.
+        rpc = self._transport._wrapped_methods[self._transport.list_deployment_events]
+
+        # Certain fields should be provided within the metadata header;
+        # add these here.
+        metadata = tuple(metadata) + (
+            gapic_v1.routing_header.to_grpc_metadata((("parent", request.parent),)),
+        )
+
+        # Validate the universe domain.
+        self._validate_universe_domain()
+
+        # Send the request.
+        response = rpc(
+            request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+        # This method is paged; wrap the response in a pager, which provides
+        # an `__iter__` convenience method.
+        response = pagers.ListDeploymentEventsPager(
+            method=rpc,
+            request=request,
+            response=response,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
 
         # Done; return the response.

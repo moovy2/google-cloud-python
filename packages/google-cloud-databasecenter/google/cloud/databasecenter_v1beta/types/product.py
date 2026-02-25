@@ -68,6 +68,7 @@ class Engine(proto.Enum):
             engine. This is to be when engine is known, but
             it is not present in this enum.
     """
+
     ENGINE_UNSPECIFIED = 0
     ENGINE_MYSQL = 1
     ENGINE_POSTGRES = 2
@@ -93,28 +94,29 @@ class ProductType(proto.Enum):
             PRODUCT_TYPE_UNSPECIFIED means product type is not known or
             that the user didn't provide this field in the request.
         PRODUCT_TYPE_CLOUD_SQL (1):
-            Cloud SQL product area in GCP
+            Cloud SQL product area in Google Cloud
         PRODUCT_TYPE_ALLOYDB (2):
-            AlloyDB product area in GCP
+            AlloyDB product area in Google Cloud
         PRODUCT_TYPE_SPANNER (3):
-            Spanner product area in GCP
+            Spanner product area in Google Cloud
         PRODUCT_TYPE_BIGTABLE (6):
-            Bigtable product area in GCP
+            Bigtable product area in Google Cloud
         PRODUCT_TYPE_MEMORYSTORE (7):
-            Memorystore product area in GCP
+            Memorystore product area in Google Cloud
         PRODUCT_TYPE_FIRESTORE (8):
-            Firestore product area in GCP
+            Firestore product area in Google Cloud
         PRODUCT_TYPE_COMPUTE_ENGINE (9):
             Compute Engine self managed databases
         PRODUCT_TYPE_ORACLE_ON_GCP (10):
-            Oracle product area in GCP
+            Oracle product area in Google Cloud
         PRODUCT_TYPE_BIGQUERY (11):
-            BigQuery product area in GCP
+            BigQuery product area in Google Cloud
         PRODUCT_TYPE_OTHER (5):
             Other refers to rest of other product type.
             This is to be when product type is known, but it
             is not present in this enum.
     """
+
     PRODUCT_TYPE_UNSPECIFIED = 0
     PRODUCT_TYPE_CLOUD_SQL = 1
     PRODUCT_TYPE_ALLOYDB = 2

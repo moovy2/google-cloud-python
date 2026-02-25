@@ -17,15 +17,15 @@ import abc
 from typing import Awaitable, Callable, Dict, Optional, Sequence, Union
 
 import google.api_core
+import google.auth  # type: ignore
+import google.protobuf
 from google.api_core import exceptions as core_exceptions
 from google.api_core import gapic_v1, operations_v1
 from google.api_core import retry as retries
-import google.auth  # type: ignore
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.cloud.location import locations_pb2  # type: ignore
 from google.longrunning import operations_pb2  # type: ignore
 from google.oauth2 import service_account  # type: ignore
-import google.protobuf
 
 from google.cloud.developerconnect_v1 import gapic_version as package_version
 from google.cloud.developerconnect_v1.types import developer_connect
@@ -366,6 +366,16 @@ class DeveloperConnectTransport(abc.ABC):
                 default_timeout=None,
                 client_info=client_info,
             ),
+            self.start_o_auth: gapic_v1.method.wrap_method(
+                self.start_o_auth,
+                default_timeout=None,
+                client_info=client_info,
+            ),
+            self.finish_o_auth: gapic_v1.method.wrap_method(
+                self.finish_o_auth,
+                default_timeout=None,
+                client_info=client_info,
+            ),
             self.get_location: gapic_v1.method.wrap_method(
                 self.get_location,
                 default_timeout=None,
@@ -665,6 +675,30 @@ class DeveloperConnectTransport(abc.ABC):
         raise NotImplementedError()
 
     @property
+    def start_o_auth(
+        self,
+    ) -> Callable[
+        [developer_connect.StartOAuthRequest],
+        Union[
+            developer_connect.StartOAuthResponse,
+            Awaitable[developer_connect.StartOAuthResponse],
+        ],
+    ]:
+        raise NotImplementedError()
+
+    @property
+    def finish_o_auth(
+        self,
+    ) -> Callable[
+        [developer_connect.FinishOAuthRequest],
+        Union[
+            developer_connect.FinishOAuthResponse,
+            Awaitable[developer_connect.FinishOAuthResponse],
+        ],
+    ]:
+        raise NotImplementedError()
+
+    @property
     def list_operations(
         self,
     ) -> Callable[
@@ -688,13 +722,19 @@ class DeveloperConnectTransport(abc.ABC):
     @property
     def cancel_operation(
         self,
-    ) -> Callable[[operations_pb2.CancelOperationRequest], None,]:
+    ) -> Callable[
+        [operations_pb2.CancelOperationRequest],
+        None,
+    ]:
         raise NotImplementedError()
 
     @property
     def delete_operation(
         self,
-    ) -> Callable[[operations_pb2.DeleteOperationRequest], None,]:
+    ) -> Callable[
+        [operations_pb2.DeleteOperationRequest],
+        None,
+    ]:
         raise NotImplementedError()
 
     @property
