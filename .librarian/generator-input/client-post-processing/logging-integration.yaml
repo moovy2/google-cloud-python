@@ -471,3 +471,16 @@ replacements:
           "django",
       ]
     count: 1
+  - paths: [
+      packages/google-cloud-logging/noxfile.py
+    ]
+    before: |
+      """Run the type checker."""
+      [\s\S]*?"google",\n    \)
+    after: |
+      """Run the type checker."""
+
+          # TODO(https://github.com/googleapis/google-cloud-python/issues/13362):
+          # Enable mypy once this repo has been updated for mypy evaluation.
+          session.skip("Skip mypy since this library is not yet updated for mypy evaluation")
+    count: 1
