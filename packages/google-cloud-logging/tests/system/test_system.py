@@ -12,39 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
-from datetime import timedelta
-from datetime import timezone
 import logging
 import numbers
 import os
-import pytest
 import sys
 import unittest
 import uuid
+from datetime import datetime, timedelta, timezone
 
-from google.api_core.exceptions import BadGateway
-from google.api_core.exceptions import Conflict
-from google.api_core.exceptions import InternalServerError
-from google.api_core.exceptions import NotFound
-from google.api_core.exceptions import TooManyRequests
-from google.api_core.exceptions import ResourceExhausted
-from google.api_core.exceptions import RetryError
-from google.api_core.exceptions import ServiceUnavailable
-import google.cloud.logging
+import pytest
+from google.api_core.exceptions import (
+    BadGateway,
+    Conflict,
+    InternalServerError,
+    NotFound,
+    ResourceExhausted,
+    RetryError,
+    ServiceUnavailable,
+    TooManyRequests,
+)
 from google.cloud._helpers import UTC
-from google.cloud.logging_v2.handlers import CloudLoggingHandler
-from google.cloud.logging_v2.handlers.transports import BackgroundThreadTransport
-from google.cloud.logging_v2.handlers.transports import SyncTransport
-from google.cloud.logging_v2 import client
-from google.cloud.logging_v2.resource import Resource
-from google.cloud.logging_v2.entries import TextEntry
-
-from google.protobuf.struct_pb2 import Struct, Value, ListValue, NullValue
-
-from test_utils.retry import RetryErrors
-from test_utils.retry import RetryResult
+from google.protobuf.struct_pb2 import ListValue, NullValue, Struct, Value
+from test_utils.retry import RetryErrors, RetryResult
 from test_utils.system import unique_resource_id
+
+import google.cloud.logging
+from google.cloud.logging_v2 import client
+from google.cloud.logging_v2.entries import TextEntry
+from google.cloud.logging_v2.handlers import CloudLoggingHandler
+from google.cloud.logging_v2.handlers.transports import (
+    BackgroundThreadTransport,
+    SyncTransport,
+)
+from google.cloud.logging_v2.resource import Resource
 
 _RESOURCE_ID = unique_resource_id("-")
 DEFAULT_FILTER = "logName:syslog AND severity>=INFO"
@@ -214,6 +214,7 @@ class TestLogging(unittest.TestCase):
         Test emitting and listing logs containing a google.cloud.audit.AuditLog proto message
         """
         from google.protobuf import descriptor_pool
+
         from google.cloud.logging_v2 import entries
 
         pool = descriptor_pool.Default()
@@ -273,6 +274,7 @@ class TestLogging(unittest.TestCase):
         Test emitting and listing logs containing a google.appengine.logging.v1.RequestLog proto message
         """
         from google.protobuf import descriptor_pool
+
         from google.cloud.logging_v2 import entries
 
         pool = descriptor_pool.Default()
@@ -324,6 +326,7 @@ class TestLogging(unittest.TestCase):
         Test emitting and listing logs containing a google.iam.v1.logging.AuditData proto message
         """
         from google.protobuf import descriptor_pool
+
         from google.cloud.logging_v2 import entries
 
         pool = descriptor_pool.Default()
@@ -738,6 +741,7 @@ class TestLogging(unittest.TestCase):
 
     def test_log_handler_close(self):
         import multiprocessing
+
         from google.cloud import logging as cloud_logging  # Ensure import is available
 
         ctx = multiprocessing.get_context("fork")
@@ -774,6 +778,7 @@ class TestLogging(unittest.TestCase):
 
     def test_log_client_flush_handlers(self):
         import multiprocessing
+
         from google.cloud import logging as cloud_logging  # Ensure import is available
 
         ctx = multiprocessing.get_context("fork")
@@ -946,8 +951,9 @@ class TestLogging(unittest.TestCase):
         self.assertTrue(sink.exists())
 
     def _init_bigquery_dataset(self):
-        from google.cloud import bigquery
         from google.cloud.bigquery.dataset import AccessEntry
+
+        from google.cloud import bigquery
 
         dataset_name = ("system_testing_dataset" + _RESOURCE_ID).replace("-", "_")
         dataset_uri = "bigquery.googleapis.com/projects/%s/datasets/%s" % (

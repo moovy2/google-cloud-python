@@ -17,12 +17,10 @@ from __future__ import annotations
 
 from typing import MutableMapping, MutableSequence
 
-import proto  # type: ignore
-
 import google.api.distribution_pb2 as distribution_pb2  # type: ignore
 import google.api.metric_pb2 as metric_pb2  # type: ignore
 import google.protobuf.timestamp_pb2 as timestamp_pb2  # type: ignore
-
+import proto  # type: ignore
 
 __protobuf__ = proto.module(
     package="google.logging.v2",
@@ -190,6 +188,7 @@ class LogMetric(proto.Message):
             V1 (1):
                 Logging API v1.
         """
+
         V2 = 0
         V1 = 1
 

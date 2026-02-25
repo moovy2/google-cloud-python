@@ -15,10 +15,10 @@
 import os
 import time
 
-import pytest
-
 import google.auth
+import pytest
 from google.api import monitored_resource_pb2
+
 from google.cloud import logging_v2
 
 

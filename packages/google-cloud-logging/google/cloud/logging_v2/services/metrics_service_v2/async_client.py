@@ -14,11 +14,12 @@
 # limitations under the License.
 #
 import logging as std_logging
-from collections import OrderedDict
 import re
+import uuid
+from collections import OrderedDict
 from typing import (
-    Dict,
     Callable,
+    Dict,
     Mapping,
     MutableMapping,
     MutableSequence,
@@ -28,33 +29,33 @@ from typing import (
     Type,
     Union,
 )
-import uuid
 
-from google.cloud.logging_v2 import gapic_version as package_version
-
-from google.api_core.client_options import ClientOptions
+import google.protobuf
 from google.api_core import exceptions as core_exceptions
 from google.api_core import gapic_v1
 from google.api_core import retry_async as retries
+from google.api_core.client_options import ClientOptions
 from google.auth import credentials as ga_credentials  # type: ignore
 from google.oauth2 import service_account  # type: ignore
-import google.protobuf
 
+from google.cloud.logging_v2 import gapic_version as package_version
 
 try:
     OptionalRetry = Union[retries.AsyncRetry, gapic_v1.method._MethodDefault, None]
 except AttributeError:  # pragma: NO COVER
     OptionalRetry = Union[retries.AsyncRetry, object, None]  # type: ignore
 
-from google.cloud.logging_v2.services.metrics_service_v2 import pagers
-from google.cloud.logging_v2.types import logging_metrics
-from google.longrunning import operations_pb2  # type: ignore
 import google.api.distribution_pb2 as distribution_pb2  # type: ignore
 import google.api.metric_pb2 as metric_pb2  # type: ignore
 import google.protobuf.timestamp_pb2 as timestamp_pb2  # type: ignore
-from .transports.base import MetricsServiceV2Transport, DEFAULT_CLIENT_INFO
-from .transports.grpc_asyncio import MetricsServiceV2GrpcAsyncIOTransport
+from google.longrunning import operations_pb2  # type: ignore
+
+from google.cloud.logging_v2.services.metrics_service_v2 import pagers
+from google.cloud.logging_v2.types import logging_metrics
+
 from .client import MetricsServiceV2Client
+from .transports.base import DEFAULT_CLIENT_INFO, MetricsServiceV2Transport
+from .transports.grpc_asyncio import MetricsServiceV2GrpcAsyncIOTransport
 
 try:
     from google.api_core import client_logging  # type: ignore

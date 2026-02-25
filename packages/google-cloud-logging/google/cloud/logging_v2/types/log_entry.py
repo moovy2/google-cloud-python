@@ -17,15 +17,13 @@ from __future__ import annotations
 
 from typing import MutableMapping, MutableSequence
 
-import proto  # type: ignore
-
 import google.api.monitored_resource_pb2 as monitored_resource_pb2  # type: ignore
 import google.logging.type.http_request_pb2 as http_request_pb2  # type: ignore
 import google.logging.type.log_severity_pb2 as log_severity_pb2  # type: ignore
 import google.protobuf.any_pb2 as any_pb2  # type: ignore
 import google.protobuf.struct_pb2 as struct_pb2  # type: ignore
 import google.protobuf.timestamp_pb2 as timestamp_pb2  # type: ignore
-
+import proto  # type: ignore
 
 __protobuf__ = proto.module(
     package="google.logging.v2",

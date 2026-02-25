@@ -18,20 +18,19 @@ from google.cloud.logging_v2 import gapic_version as package_version
 
 __version__ = package_version.__version__
 
+from google.cloud.logging_v2 import handlers, types
 from google.cloud.logging_v2.client import Client
-from google.cloud.logging_v2.entries import logger_name_from_path
-from google.cloud.logging_v2.entries import LogEntry
-from google.cloud.logging_v2.entries import TextEntry
-from google.cloud.logging_v2.entries import StructEntry
-from google.cloud.logging_v2.entries import ProtobufEntry
-from google.cloud.logging_v2 import handlers
-from google.cloud.logging_v2.logger import Logger
-from google.cloud.logging_v2.logger import Batch
+from google.cloud.logging_v2.entries import (
+    LogEntry,
+    ProtobufEntry,
+    StructEntry,
+    TextEntry,
+    logger_name_from_path,
+)
+from google.cloud.logging_v2.logger import Batch, Logger
 from google.cloud.logging_v2.metric import Metric
 from google.cloud.logging_v2.resource import Resource
 from google.cloud.logging_v2.sink import Sink
-from google.cloud.logging_v2 import types
-
 
 ASCENDING = "timestamp asc"
 """Query string to order by ascending timestamps."""
