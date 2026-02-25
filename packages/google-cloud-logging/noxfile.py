@@ -60,7 +60,11 @@ UNIT_TEST_STANDARD_DEPENDENCIES = [
     "pytest-cov",
     "pytest-asyncio",
 ]
-UNIT_TEST_EXTERNAL_DEPENDENCIES: List[str] = []
+UNIT_TEST_EXTERNAL_DEPENDENCIES: List[str] = [
+    "flask",
+    "webob",
+    "django",
+]
 UNIT_TEST_LOCAL_DEPENDENCIES: List[str] = []
 UNIT_TEST_DEPENDENCIES: List[str] = []
 UNIT_TEST_EXTRAS: List[str] = []
