@@ -24,8 +24,10 @@ from google.cloud import logging_v2
 
 class TestSystemLoggingServiceV2(object):
     def test_write_log_entries(self):
-        # Use the monorepo standard environment variable
-        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+        # Use GOOGLE_CLOUD_PROJECT or PROJECT_ID
+        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get(
+            "PROJECT_ID"
+        )
 
         # Guard: Skip if project or credentials are missing
         # This prevents the "prerelease_deps" job from failing

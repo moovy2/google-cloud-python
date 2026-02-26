@@ -105,8 +105,8 @@ class Config(object):
 
 
 def setUpModule():
-    # Use GOOGLE_CLOUD_PROJECT
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    # Use GOOGLE_CLOUD_PROJECT or PROJECT_ID
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("PROJECT_ID")
 
     # Check if we have credentials (either via file or environment)
     # google.auth.default() will check GOOGLE_APPLICATION_CREDENTIALS
